@@ -27,9 +27,9 @@ class ContactImplicitTranscription:
     def terminal_cost(x, params):
       return util.state_cost(params.Qf, params.x_goal, x, task.quaternion_w_idxs)
 
-    def stage_inequality(x, u):
-      xnext = dynamics(x, u)
-      return local_inequality(x, u, xnext)
+    def stage_inequality(x, w):
+      xnext = dynamics(x, w)
+      return local_inequality(x, w, xnext)
 
     self.dynamics = dynamics
     if independent_next_state:
