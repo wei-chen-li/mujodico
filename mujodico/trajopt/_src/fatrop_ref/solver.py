@@ -961,6 +961,10 @@ class FatropReferenceJAX:
         watchdog_checkpoint=None
         for it in range(1,opt.max_iter+1):
             filt.current_iteration=it
+            # Use the metrics of the iterate recorded at the end of the
+            # previous iteration.  (Previously ``em`` stayed at its iteration-0
+            # value, so mu never decreased and convergence was never detected.)
+            em,dui,pri,comp=last_metrics
             # Monotone barrier update; repeat without consuming an NLP iteration.
             mu_changed=False
             while em < opt.kappa_eta*mu and mu>opt.mu_min:

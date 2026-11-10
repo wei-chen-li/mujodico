@@ -6,12 +6,15 @@ from mujodico.examples.tasks import Task
 
 class LiftedMultipleShootingTranscription:
 
-  def __init__(self, task: Task):
+  def __init__(self, task: Task, contact_smoothing: float | None = None):
+    if contact_smoothing is None:
+      contact_smoothing = task.contact_smoothing * 0.001
+    self.contact_smoothing = contact_smoothing
     dynamics, stage_equality, stage_inequality, w_bounds = \
     trajopt.lifted_shooting_transcription(
         mjmodel=task.model,
         contact_approximation=task.contact_approx,
-        contact_smoothing=task.contact_smoothing * 0.001,
+        contact_smoothing=contact_smoothing,
         u_bounds=task.u_bounds,
     )
 
