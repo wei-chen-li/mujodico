@@ -391,7 +391,8 @@ class IpPasSolver:
                stage_inequality: Callable, ineq_lb, ineq_ub,
                hessian_mode: str = 'cost', linear_backend: str = 'pas',
                options: IpPasOptions = IpPasOptions(),
-               eq_identity_cols=None, check_state=None):
+               eq_identity_cols=None, check_state=None,
+               equality_takes_next: bool = False):
     if hessian_mode not in ('cost', 'exact_lagrangian'):
       raise ValueError(hessian_mode)
     if linear_backend not in ('pas', 'serial'):
@@ -404,6 +405,9 @@ class IpPasSolver:
     self.dynamics = dynamics
     self.stage_equality = stage_equality
     self.stage_inequality = stage_inequality
+    # stage_equality(x, w, x_next): x_next (the trajectory's next state) is
+    # only a solver warm start; no derivatives are taken through it.
+    self._eq_next = equality_takes_next
     self.hessian_mode = hessian_mode
     self.linear_backend = linear_backend
     self.opt = options
@@ -454,8 +458,10 @@ class IpPasSolver:
   # -------------------------------------------------------------------------
   # Model evaluation
   # -------------------------------------------------------------------------
-  def _cons(self, x, w):
-    return jnp.concatenate([self.dynamics(x, w), self.stage_equality(x, w),
+  def _cons(self, x, w, xn=None):
+    eq = (self.stage_equality(x, w, jax.lax.stop_gradient(xn))
+          if (self._eq_next and xn is not None) else self.stage_equality(x, w))
+    return jnp.concatenate([self.dynamics(x, w), eq,
                             self.stage_inequality(x, w)])
 
   def _split(self, v):
@@ -463,7 +469,7 @@ class IpPasSolver:
     return v[..., :nx], v[..., nx:nx + ne], v[..., nx + ne:]
 
   def _values(self, x, w, s, params) -> Trial:
-    vals = jax.vmap(self._cons)(x[:-1], w)
+    vals = jax.vmap(self._cons)(x[:-1], w, x[1:])
     fd, h, g = self._split(vals)
     costs = jax.vmap(self.stage_cost, in_axes=(0, 0, None))(x[:-1], w, params)
     obj = jnp.sum(costs) + self.terminal_cost(x[-1], params)
@@ -473,12 +479,12 @@ class IpPasSolver:
   def _linearize(self, it: Iterate, params) -> Lin:
     x, w = it.x, it.w
 
-    def stage(xk, wk):
-      jac, val = jax.jacfwd(lambda a, b: (self._cons(a, b),) * 2,
+    def stage(xk, wk, xnk):
+      jac, val = jax.jacfwd(lambda a, b: (self._cons(a, b, xnk),) * 2,
                             argnums=(0, 1), has_aux=True)(xk, wk)
       return val, jac[0], jac[1]
 
-    vals, Jx, Jw = jax.vmap(stage)(x[:-1], w)
+    vals, Jx, Jw = jax.vmap(stage)(x[:-1], w, x[1:])
     fd, h, g = self._split(vals)
     nx, ne = self.nx, self.ne
     A, E, Gx = Jx[:, :nx], Jx[:, nx:nx + ne], Jx[:, nx + ne:]
@@ -497,11 +503,11 @@ class IpPasSolver:
     if self.hessian_mode == 'exact_lagrangian':
       yv = jnp.concatenate([it.y.cd, it.y.ch, it.y.cg], axis=1)
 
-      def lag(xk, wk, yk):
-        return jnp.dot(yk, self._cons(xk, wk))
+      def lag(xk, wk, yk, xnk):
+        return jnp.dot(yk, self._cons(xk, wk, xnk))
 
       (Cq, Cs), (_, Cr) = jax.vmap(jax.hessian(lag, argnums=(0, 1)))(
-          x[:-1], w, yv)
+          x[:-1], w, yv, x[1:])
     else:
       Cq = Cs = Cr = jnp.zeros((0,))
     c = Rows(x[0] - params['x0'], fd - x[1:], h, g - it.s)

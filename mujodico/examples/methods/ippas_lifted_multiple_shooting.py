@@ -19,9 +19,30 @@ if _CACHE and not jax.config.jax_compilation_cache_dir:
 import jax.numpy as jp  # noqa: E402
 import numpy as np  # noqa: E402
 
+from mujodico import trajopt  # noqa: E402
 from mujodico.examples import methods  # noqa: E402
 from mujodico.examples.tasks import Task  # noqa: E402
 from mujodico.trajopt._src.fatrop_ref import ippas  # noqa: E402
+
+
+def _float32(fn):
+  """Run ``fn`` in float32 (inputs cast down, output cast back to float64)."""
+  def wrapped(*args):
+    args32 = [None if a is None else jp.asarray(a).astype(jp.float32)
+              for a in args]
+    with jax.enable_x64(False):
+      out = fn(*args32)
+    return out.astype(jp.float64)
+  return wrapped
+
+
+def _with_contact_tol(task, tol):
+  import copy
+  t = copy.copy(task)
+  model = copy.deepcopy(task.model)
+  model.opt.tolerance = tol
+  object.__setattr__(t, 'model', model)
+  return t
 
 
 class IppasLiftedMultipleShooting:
@@ -39,6 +60,14 @@ class IppasLiftedMultipleShooting:
       The other lifted-multiple-shooting methods use ``0.001``.
     linear_backend: ``'pas'`` (parallel associative scan) or ``'serial'``.
     max_iter: compiled iteration cap (``solve(iterations=...)`` may be lower).
+    sap_warmstart: start MJX's contact solve in the contact equality from
+      the trajectory's next-state velocity.  Only consistent when combined
+      with a tight ``contact_solver_tol`` (the solution then no longer
+      depends on the start): warm + 1e-8 costs about the same as the default
+      cold 1e-5 solve while being ~1000x more accurate.
+    contact_solver_tol: override ``model.opt.tolerance`` for planning.
+    mjx_float32: evaluate the MJX dynamics and contact solve (and their
+      Jacobians) in float32; the interior-point method stays float64.
     state_bounds: impose the joint-range state bounds of ``task.x_bounds``.
       Off by default: before the ``jnt_type`` fix in ``Task.x_bounds`` these
       were silently empty, which is the setting the paper's Table II was
@@ -56,13 +85,25 @@ class IppasLiftedMultipleShooting:
       max_iter: int = 500,
       state_bounds: bool = False,
       condense_contact: bool = True,
+      sap_warmstart: bool = False,
+      contact_solver_tol: float | None = None,
+      mjx_float32: bool = False,
       **options,
   ):
     self.state_bounds = state_bounds
     self.condense_contact = condense_contact
     self._nu = task.nu
+    self.sap_warmstart = sap_warmstart
+    if contact_solver_tol is not None:
+      # Planning model with a tighter contact-solver tolerance (MJX's SAP
+      # stops on the Newton velocity step; the default 1e-5 leaves force
+      # errors ~1e-3 on these tasks).
+      task = _with_contact_tol(task, contact_solver_tol)
+    self.mjx_float32 = mjx_float32
+    self._build_task = task
     self.transcription = methods.LiftedMultipleShootingTranscription(
-        task, contact_smoothing=task.contact_smoothing * smoothing_scale)
+        task, contact_smoothing=task.contact_smoothing * smoothing_scale,
+        sap_warmstart=sap_warmstart)
     self.hessian_mode = 'cost' if gauss_newton else 'exact_lagrangian'
     # Tuned defaults for the contact benchmarks (see benchmark_ippas.py):
     # FATROP's algorithm unchanged except watchdog off (as in the paper's
@@ -89,6 +130,15 @@ class IppasLiftedMultipleShooting:
     w_lb_idx = np.flatnonzero(np.isfinite(w_lb))
     w_ub_idx = np.flatnonzero(np.isfinite(w_ub))
     n_soc = trans.stage_inequality(jp.zeros(trans.nx), jp.zeros(trans.nw)).size
+    dynamics, stage_equality = trans.dynamics, trans.stage_equality
+    if self.mjx_float32:
+      t = self._build_task
+      with jax.enable_x64(False):
+        d32, e32, _, _ = trajopt.lifted_shooting_transcription(
+            mjmodel=t.model, contact_approximation=t.contact_approx,
+            contact_smoothing=trans.contact_smoothing, u_bounds=t.u_bounds,
+            sap_warmstart=self.sap_warmstart)
+      dynamics, stage_equality = _float32(d32), _float32(e32)
 
     # FATROP has no simple bounds: every bound is a slack-backed path
     # inequality ``g(x, w) >= 0``.
@@ -110,8 +160,8 @@ class IppasLiftedMultipleShooting:
         nw=trans.nw,
         stage_cost=lambda x, w, p: trans.stage_cost(x, w, p['p']),
         terminal_cost=lambda x, p: trans.terminal_cost(x, p['p']),
-        dynamics=trans.dynamics,
-        stage_equality=trans.stage_equality,
+        dynamics=dynamics,
+        stage_equality=stage_equality,
         stage_inequality=stage_inequality,
         ineq_lb=np.zeros(n_ineq),
         ineq_ub=np.full(n_ineq, np.inf),
@@ -123,6 +173,7 @@ class IppasLiftedMultipleShooting:
         eq_identity_cols=(np.arange(self._nu, trans.nw)
                           if self.condense_contact else None),
         check_state=np.asarray(trans.params.x_0),
+        equality_takes_next=self.sap_warmstart,
     )
 
   def update(self, task: Task):

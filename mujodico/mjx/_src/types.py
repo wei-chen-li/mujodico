@@ -528,6 +528,9 @@ class OptionJAX(PyTreeNode):
   has_fluid_params: bool
   contact_approx: ContactApproxType
   contact_smoothing: float
+  # SAP initial guess qvel + dt * qacc_warmstart instead of qvel (off by
+  # default; used by the lifted transcription to start from x_{k+1}).
+  sap_warmstart_qacc: bool = False
 
 
 

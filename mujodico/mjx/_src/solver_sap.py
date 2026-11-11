@@ -447,11 +447,12 @@ class Context(PyTreeNode):
     sap_constraints, efc_masks = cls._build_constraints(m, d, cho_qM)
 
     warm_start = not m.opt.disableflags & DisableBit.WARMSTART
-    qvel_init = (
-      d.qvel
-      if warm_start
-      else jax.scipy.linalg.cho_solve(cho_qM, qM_qvel_smooth)
-    )
+    if warm_start and getattr(m.opt._impl, 'sap_warmstart_qacc', False):
+      qvel_init = d.qvel + m.opt.timestep * d.qacc_warmstart
+    elif warm_start:
+      qvel_init = d.qvel
+    else:
+      qvel_init = jax.scipy.linalg.cho_solve(cho_qM, qM_qvel_smooth)
 
     ctx = Context(
       qvel=qvel_init,

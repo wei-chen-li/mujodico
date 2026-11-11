@@ -6,7 +6,8 @@ from mujodico.examples.tasks import Task
 
 class LiftedMultipleShootingTranscription:
 
-  def __init__(self, task: Task, contact_smoothing: float | None = None):
+  def __init__(self, task: Task, contact_smoothing: float | None = None,
+               sap_warmstart: bool = False):
     if contact_smoothing is None:
       contact_smoothing = task.contact_smoothing * 0.001
     self.contact_smoothing = contact_smoothing
@@ -16,6 +17,7 @@ class LiftedMultipleShootingTranscription:
         contact_approximation=task.contact_approx,
         contact_smoothing=contact_smoothing,
         u_bounds=task.u_bounds,
+        sap_warmstart=sap_warmstart,
     )
 
     def stage_cost(x, w, params):

@@ -65,6 +65,7 @@ def lifted_shooting_transcription(
     contact_approximation: mjx.ContactApproxType,
     contact_smoothing: float,
     u_bounds: Bounds | None = None,
+    sap_warmstart: bool = False,
 ):
   """Builds dynamics and constraints with contact forces as lifted controls.
 
@@ -80,10 +81,14 @@ def lifted_shooting_transcription(
     contact_smoothing: contact smoothing parameter used by the dynamics.
     u_bounds: optional pair of lower and upper actuator control bounds.
               Defaults to unbounded controls.
+    sap_warmstart: start the contact solve of ``stage_equality(x, w, x_next)``
+              from the velocity of ``x_next`` (the lifted trajectory's next
+              state) instead of the current velocity.  Same solution up to
+              the solver tolerance, far fewer Newton iterations.
 
   Returns:
     dynamics: ``dynamics(x, w)`` returns the next state.
-    stage_equality: constraint ``stage_equality(x, w) = 0``.
+    stage_equality: constraint ``stage_equality(x, w[, x_next]) = 0``.
     stage_inequality: constraint ``stage_inequality(x, w) ≥ 0``.
     w_bounds: pair of lower and upper bounds for ``w``.
   """
@@ -94,6 +99,9 @@ def lifted_shooting_transcription(
       contact_smoothing=contact_smoothing,
   )
   data = mjx.make_data(model, impl=model.impl)
+  if sap_warmstart:
+    model = model.replace(opt=model.opt.replace(
+        _impl=model.opt._impl.replace(sap_warmstart_qacc=True)))
 
   cf_addresses, contacts = _extract_contact_indices(model)
   elliptic_contacts = [c for c in contacts if c.type == _Contact.Type.ELLIPTIC]
@@ -101,9 +109,13 @@ def lifted_shooting_transcription(
   nu = model.nu
   ncf = int(cf_addresses.size)
 
-  def step1(x: jax.Array, u: jax.Array) -> jax.Array:
+  def step1(x: jax.Array, u: jax.Array, x_next=None) -> jax.Array:
     nq, nv = model.nq, model.nv
     d = data.replace(qpos=x[:nq], qvel=x[nq:nq+nv], act=x[nq+nv:], ctrl=u)
+    if x_next is not None:
+      v_guess = jax.lax.stop_gradient(x_next[nq:nq+nv])
+      d = d.replace(qacc_warmstart=(v_guess - jax.lax.stop_gradient(
+          x[nq:nq+nv])) / model.opt.timestep)
     d = mjx.forward(model, d)
     return d._impl.efc_force[cf_addresses]
 
@@ -120,9 +132,9 @@ def lifted_shooting_transcription(
     u, cf = unpack_control(w)
     return step2(x, u, cf)
 
-  def stage_equality(x: jax.Array, w: jax.Array) -> jax.Array:
+  def stage_equality(x: jax.Array, w: jax.Array, x_next=None) -> jax.Array:
     u, cf = unpack_control(w)
-    return cf - step1(x, u)
+    return cf - step1(x, u, x_next)
 
   def stage_inequality(x: jax.Array, w: jax.Array) -> jax.Array:
     del x
