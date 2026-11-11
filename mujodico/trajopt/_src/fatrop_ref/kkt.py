@@ -431,3 +431,74 @@ def solve_serial(sys: KKTSystem, rhs: KKTRhs, pivot_tol: float = 1e-8):
   ok = _stage_inertia(sys, Vall[1:], pivot_tol) & _initial_inertia(
       sys, Vall[0], pivot_tol)
   return sol, ok
+
+
+# ---------------------------------------------------------------------------
+# Exact condensation of equality rows with an identity block
+# ---------------------------------------------------------------------------
+class Condensation(NamedTuple):
+  """Change of variables ``dw = Tw du + Tx dx + t0`` eliminating ``dw[f]``.
+
+  Valid when the path equalities read ``E dx + Fu dw[u] + dw[f] + e = 0``
+  (an identity block on the ``f`` columns, one row per ``f`` column) and are
+  hard (``De = 0``), as for lifted contact forces ``cf - f_contact(x,u) = 0``.
+  """
+  sys: KKTSystem     # reduced system with ne = 0 and nw = len(u)
+  Tw: jax.Array      # (N, nw, nu_r)
+  Tx: jax.Array      # (N, nw, nx)
+  Rr: jax.Array      # (N, nw, nw) original R + diag(Dxw)
+
+
+def condense(sys: KKTSystem, iu, if_) -> Condensation:
+  N, nx, _ = sys.Q.shape
+  nw = sys.R.shape[-1]
+  nur = len(iu)
+  iu = jnp.asarray(iu)
+  if_ = jnp.asarray(if_)
+  Fu = sys.F[:, :, iu]                                    # (N, ne, nur)
+  Tw = jnp.zeros((N, nw, nur), sys.R.dtype)
+  Tw = Tw.at[:, iu, :].set(jnp.eye(nur, dtype=sys.R.dtype)[None])
+  Tw = Tw.at[:, if_, :].set(-Fu)
+  Tx = jnp.zeros((N, nw, nx), sys.R.dtype).at[:, if_, :].set(-sys.E)
+  Rr = sys.R + jax.vmap(jnp.diag)(sys.Dxw)
+  tT = lambda M: jnp.swapaxes(M, 1, 2)
+  RTx = Rr @ Tx
+  Q = sys.Q + sys.S @ Tx + tT(sys.S @ Tx) + tT(Tx) @ RTx
+  S = sys.S @ Tw + tT(Tx) @ (Rr @ Tw)
+  R = tT(Tw) @ Rr @ Tw
+  red = KKTSystem(
+      Q=0.5 * (Q + tT(Q)), S=S, R=0.5 * (R + tT(R)), Qf=sys.Qf, Dxx=sys.Dxx,
+      Dxw=jnp.zeros((N, nur), sys.R.dtype), Dxf=sys.Dxf,
+      A=sys.A + sys.B @ Tx, B=sys.B @ Tw,
+      E=jnp.zeros((N, 0, nx), sys.E.dtype), F=jnp.zeros((N, 0, nur), sys.F.dtype),
+      Gx=sys.Gx + sys.Gw @ Tx, Gw=sys.Gw @ Tw,
+      De=jnp.zeros((N, 0), sys.De.dtype), Dii=sys.Dii, De0=sys.De0,
+      resto=sys.resto)
+  return Condensation(red, Tw, Tx, Rr)
+
+
+def condense_rhs(cd: Condensation, sys: KKTSystem, rhs: KKTRhs, if_) -> KKTRhs:
+  N, nw = rhs.r.shape
+  t0 = jnp.zeros((N, nw), rhs.r.dtype).at[:, jnp.asarray(if_)].set(-rhs.e)
+  rt = rhs.r + jnp.einsum('nij,nj->ni', cd.Rr, t0)
+  tTv = lambda M, v: jnp.einsum('nji,nj->ni', M, v)
+  q = rhs.q + jnp.einsum('nij,nj->ni', sys.S, t0) + tTv(cd.Tx, rt)
+  return KKTRhs(q=q, r=tTv(cd.Tw, rt), qf=rhs.qf,
+                a=rhs.a + jnp.einsum('nij,nj->ni', sys.B, t0),
+                e=jnp.zeros((N, 0), rhs.e.dtype),
+                g=rhs.g + jnp.einsum('nij,nj->ni', sys.Gw, t0), c0=rhs.c0)
+
+
+def expand(cd: Condensation, sys: KKTSystem, rhs: KKTRhs, sol: KKTSolution,
+           if_) -> KKTSolution:
+  N, nw = rhs.r.shape
+  if_ = jnp.asarray(if_)
+  t0 = jnp.zeros((N, nw), rhs.r.dtype).at[:, if_].set(-rhs.e)
+  mv = lambda M, v: jnp.einsum('nij,nj->ni', M, v)
+  mtv = lambda M, v: jnp.einsum('nji,nj->ni', M, v)
+  dw = mv(cd.Tw, sol.dw) + mv(cd.Tx, sol.dx[:-1]) + t0
+  # Equality multipliers from the (eliminated) identity-column stationarity.
+  row = (mtv(sys.S, sol.dx[:-1]) + mv(cd.Rr, dw) + mtv(sys.B, sol.dlam) +
+         mtv(sys.Gw, sol.dgamma) + rhs.r)
+  dbeta = -row[:, if_]
+  return KKTSolution(sol.dx, dw, sol.dlam, dbeta, sol.dgamma, sol.dlam0)

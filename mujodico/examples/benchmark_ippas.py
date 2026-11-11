@@ -29,6 +29,7 @@ from mujodico.examples.tasks import PushSphere2d
 from mujodico.examples.tasks import PushSquareKnob
 from mujodico.examples.tasks import allegro_ball as _allegro_ball
 from mujodico.examples.tasks import parse_task_name
+from mujodico.examples.tasks import Task
 
 _TASKS = flags.DEFINE_list('tasks', ['PushBox2d'], 'Task names.')
 _SEEDS = flags.DEFINE_string('seeds', '0:20', 'Seed range start:stop.')
@@ -108,7 +109,62 @@ class PushSphere2dTable(PushSphere2d):
     object.__setattr__(self, 'contact_smoothing', 0.01)
 
 
+_PEN_SEP15_XML = """
+<mujoco model="right_allegro_hand scene">
+  <option timestep="0.05"  />
+  <option integrator="implicitfast" />
+  <option iterations="20" tolerance="1e-5" />
+  <include file="right_hand2_sep15.xml"/>
+  <worldbody>
+    <body name="object" pos="-0.025 0 0.026">
+      <freejoint/>
+      <geom type="capsule" size="0.015" fromto="0 -0.08 0 0 0.08 0" rgba="0.5 0.7 0.5 1" friction="0.7" density="300"/>
+      <geom name="angle_indicator" type="sphere" size="0.005" pos="0 0 0.011" rgba="0 0 0 1"
+            contype="0" conaffinity="0" />
+    </body>
+  </worldbody>
+</mujoco>
+"""
+
+
+class AllegroPenSep15(Task):
+  """Original pen task (repo commit 4d95342, 2026-09-15): 15 steps of 0.05 s,
+  goal = random x translation in +-1 cm, no rotation."""
+
+  HORIZON = 15
+
+  def __init__(self, seed=0):
+    models = Path(_allegro_ball.__file__).resolve().parent / 'models' / 'wonik_allegro'
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', dir=models,
+                                     delete=False) as f:
+      f.write(_PEN_SEP15_XML)
+    try:
+      model = mujoco.MjModel.from_xml_path(f.name)
+    finally:
+      Path(f.name).unlink()
+    data = mujoco.MjData(model)
+    x_0 = np.concatenate((data.qpos, data.qvel))
+    x_0[0:4] = np.deg2rad([0, 70, 80, 60])
+    x_0[4:8] = np.deg2rad([0, 40, 60, 30])
+    x_0[8:12] = np.deg2rad([0, 70, 80, 60])
+    x_0[12:16] = np.deg2rad([50, 110, 80, 60])
+    rng = np.random.default_rng(seed)
+    x_goal = x_0.copy()
+    x_goal[16:19] += rng.uniform([-0.01, 0.0, 0.0], [0.01, 0.0, 0.0])
+    x_goal[19:23] = [1.0, 0.0, 0.0, 0.0]
+    Q = np.diag([0.0] * 16 + [100] * 3 + [0.01] * 4 + [0.0] * 22)
+    super().__init__(model=model, horizon=self.HORIZON, x_0=x_0, x_goal=x_goal,
+                     Q=Q, Qf=Q * 40.0, u_ref=x_0[:16], R=np.eye(16) * 0.01,
+                     contact_smoothing=0.002)
+
+
+class AllegroPenSep15H20(AllegroPenSep15):
+  """The original pen task with the 20-step horizon stated for Table II."""
+  HORIZON = 20
+
+
 _EXTRA_TASKS = {c.__name__: c for c in (
+    AllegroPenSep15, AllegroPenSep15H20,
     AllegroBallTable, AllegroBallTablePlainCost, AllegroBallTableDevHand,
     PushSquareKnobTable,
     PushSphere2dTable)}

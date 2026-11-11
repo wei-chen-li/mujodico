@@ -1,10 +1,20 @@
 """IP-PAS (jitted FATROP interior point + parallel associative scan) method."""
 
+import os
 import time
 
 import jax
 
 jax.config.update('jax_enable_x64', True)
+
+# Persistent XLA compilation cache: later processes skip most of the compile
+# (AllegroBall cold start 63 s -> 19 s).  Respects an existing JAX cache
+# setting; set IPPAS_JAX_CACHE='' to disable or to a path to relocate.
+_CACHE = os.environ.get('IPPAS_JAX_CACHE',
+                        os.path.expanduser('~/.cache/mujodico_ippas'))
+if _CACHE and not jax.config.jax_compilation_cache_dir:
+  jax.config.update('jax_compilation_cache_dir', _CACHE)
+  jax.config.update('jax_persistent_cache_min_compile_time_secs', 1.0)
 
 import jax.numpy as jp  # noqa: E402
 import numpy as np  # noqa: E402
@@ -45,9 +55,12 @@ class IppasLiftedMultipleShooting:
       linear_backend: str = 'pas',
       max_iter: int = 500,
       state_bounds: bool = False,
+      condense_contact: bool = True,
       **options,
   ):
     self.state_bounds = state_bounds
+    self.condense_contact = condense_contact
+    self._nu = task.nu
     self.transcription = methods.LiftedMultipleShootingTranscription(
         task, contact_smoothing=task.contact_smoothing * smoothing_scale)
     self.hessian_mode = 'cost' if gauss_newton else 'exact_lagrangian'
@@ -105,6 +118,11 @@ class IppasLiftedMultipleShooting:
         hessian_mode=self.hessian_mode,
         linear_backend=self.linear_backend,
         options=self.options,
+        # cf - f_contact(x, u) = 0 has an identity block in the cf columns:
+        # condense the lifted forces out of the KKT solves (exact).
+        eq_identity_cols=(np.arange(self._nu, trans.nw)
+                          if self.condense_contact else None),
+        check_state=np.asarray(trans.params.x_0),
     )
 
   def update(self, task: Task):

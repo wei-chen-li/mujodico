@@ -138,6 +138,10 @@ class IpPasOptions:
   bound_mult_reset_threshold: float = 1e3
   # Implementation
   max_ls: int = 64           # safety cap on line-search passes
+  # Evaluate this many backtracking step lengths per model evaluation
+  # (alpha, alpha*r, alpha*r^2, ...) and cache them.  The acceptance logic is
+  # unchanged; 0 selects 4 on GPU (evaluations are latency bound) and 1 on CPU.
+  ls_batch: int = 0
   max_inertia_tries: int = 60  # safety cap on inertia corrections
   record_trace: bool = True
 
@@ -386,7 +390,8 @@ class IpPasSolver:
                dynamics: Callable, stage_equality: Callable,
                stage_inequality: Callable, ineq_lb, ineq_ub,
                hessian_mode: str = 'cost', linear_backend: str = 'pas',
-               options: IpPasOptions = IpPasOptions()):
+               options: IpPasOptions = IpPasOptions(),
+               eq_identity_cols=None, check_state=None):
     if hessian_mode not in ('cost', 'exact_lagrangian'):
       raise ValueError(hessian_mode)
     if linear_backend not in ('pas', 'serial'):
@@ -429,6 +434,20 @@ class IpPasSolver:
     self._emask = ERows(np.full((self.nx,), m0), np.ones((self.N, self.ne)),
                         np.ones((self.N, self.ni)))
     self._filter_cap = options.max_iter + 8
+    self._K = options.ls_batch or (4 if jax.default_backend() == 'gpu' else 1)
+    # Optional exact condensation of path equalities with an identity block
+    # in the columns ``eq_identity_cols`` of w (lifted contact forces).
+    self._cond = None
+    if eq_identity_cols is not None and linear_backend == 'pas' and self.ne:
+      if_ = np.asarray(eq_identity_cols, dtype=np.int64)
+      iu = np.setdiff1d(np.arange(self.nw), if_)
+      xc = jnp.zeros(nx) if check_state is None else jnp.asarray(check_state)
+      F0 = np.asarray(jax.jacfwd(stage_equality, argnums=1)(xc, jnp.zeros(nw)))
+      if (if_.size != self.ne or
+          not np.allclose(F0[:, if_], np.eye(self.ne), atol=1e-12)):
+        raise ValueError('eq_identity_cols must index an identity block of '
+                         'the stage equality Jacobian (one row per column)')
+      self._cond = (iu, if_)
     self._solve = jax.jit(self._solve_impl)
     self._compiled = {}
 
@@ -850,6 +869,34 @@ class IpPasSolver:
     Returns ``(direction, flag)`` with flag 0 success, 1 indefinite, 2 NaN.
     """
     o = self.opt
+    if self._cond is not None:
+      # Hard path equalities with an identity block are condensed out;
+      # restoration (regularized rows) uses the full saddle-point path.
+      iu, if_ = self._cond
+
+      def impl_cond(_):
+        cd = kkt.condense(sys, iu, if_)
+        f = kkt.factor_pas(cd.sys, o.pivot_tol) if fac is None else fac
+
+        def kkt_c(bb):
+          rb = self._reduce(red, bb)
+          s_ = kkt.solve_factored(f, cd.sys, kkt.condense_rhs(cd, sys, rb, if_))
+          return self._dereduce(red, bb, kkt.expand(cd, sys, rb, s_, if_)), f.ok
+        return self._refine(sys, red, b, factor, kkt_c) + (f,)
+
+      def impl_full(_):
+        f_full = kkt.factor_pas(sys, o.pivot_tol)
+
+        def kkt_f(bb):
+          s_ = kkt.solve_factored(f_full, sys, self._reduce(red, bb))
+          return self._dereduce(red, bb, s_), f_full.ok
+        out = self._refine(sys, red, b, factor, kkt_f)
+        shape = jax.eval_shape(lambda: kkt.factor_pas(
+            kkt.condense(sys, iu, if_).sys, o.pivot_tol))
+        return out + (_tmap(lambda l: jnp.zeros(l.shape, l.dtype), shape),)
+
+      res = jax.lax.cond(sys.resto, impl_full, impl_cond, None)
+      return res if return_fac else res[:3]
     if self.linear_backend == 'pas':
       # Factor once; every refinement solve reuses the factorization.
       if fac is None:
@@ -863,13 +910,16 @@ class IpPasSolver:
         sol_, ok_ = self._kkt_solve(sys, self._reduce(red, bb))
         return self._dereduce(red, bb, sol_), ok_
     fac_out = fac if fac is not None else jnp.zeros((0,))
+    out = self._refine(sys, red, b, factor, kkt_)
+    return out + (fac_out,) if return_fac else out
 
+  def _refine(self, sys, red, b, factor, kkt_):
+    """FATROP ``LinearSolver::apply_iterative_refinement`` around ``kkt_``."""
+    o = self.opt
     if o.max_it_ref == 0:
       d, ok = kkt_(b)
-      out = (d, jnp.where(ok | (not factor), 0, 1), jnp.asarray(1))
-      return out + (fac_out,) if return_fac else out
+      return d, jnp.where(ok | (not factor), 0, 1), jnp.asarray(1)
 
-    # FATROP LinearSolver::apply_iterative_refinement.
     def cond(c):
       return ~c['done']
 
@@ -899,8 +949,7 @@ class IpPasSolver:
     flag = jnp.where(c['nan'], 2, 0)
     if factor:
       flag = jnp.where(c['ok'], flag, 1)
-    out = (c['xb'], flag, c['i'])
-    return out + (fac_out,) if return_fac else out
+    return c['xb'], flag, c['i']
 
   def _zero_dir(self, b: FullRhs) -> Direction:
     z = jnp.zeros_like
@@ -1156,20 +1205,27 @@ class IpPasSolver:
     z = lambda: jnp.asarray(0.0, dt)
     # Loop-invariant data lives outside the while-loop carry (a trace-time
     # context): copying it through every conditional dominated GPU time.
-    self._ctx = dict(lin=lin, A=A, refs=refs, mode=mode,
+    self._ctx = dict(lin=lin, A=A, refs=refs, mode=mode, cur=cur, d=d,
                      fac=getattr(self, '_search_fac', None))
+    # cur/d/trial are not carried: they change only on a watchdog restart
+    # (flag ``restored``) or an accepted SOC (``soc_taken``), and the trial
+    # point is recomputed from its step length.
     carry = dict(
-        phase=phase0, cur=cur, d=d, ls=ls, restored=stopw,
+        phase=phase0, ls=ls, restored=jnp.asarray(False),
         tiny_flag=A.tiny_step_flag,
         alpha=apmax_c, apmax=apmax_c, alpha_min=alpha_min0, atest=atest0,
         n_steps=jnp.asarray(0), accept=jnp.asarray(False),
         eval_error=jnp.asarray(False), soc_taken=jnp.asarray(False),
         soc_count=jnp.asarray(0), theta_soc_old=z(), theta_trial=z(),
         alpha_soc=z(), soc_acc=self._cviol(lin.c, cur, mode), dsoc=d,
-        trial=cur, trial_barr=z(), alpha_outer=z(), typ=jnp.asarray(T_UNKNOWN),
+        trial_alpha=z(), trial_barr=z(), alpha_outer=z(),
+        typ=jnp.asarray(T_UNKNOWN),
         tiny=tiny, outcome=jnp.asarray(2), satisfies=jnp.asarray(False),
         soft_kind=jnp.asarray(0), passes=jnp.asarray(0), th_cur=th_cur_l1,
-        nkkt=jnp.asarray(0))
+        nkkt=jnp.asarray(0), nevals=jnp.asarray(0),
+        cache_a=jnp.zeros((self._K,), dt), cache_th=jnp.zeros((self._K,), dt),
+        cache_barr=jnp.zeros((self._K,), dt),
+        cache_ok=jnp.zeros((self._K,), bool), cache_n=jnp.asarray(0))
 
     def cond(c):
       return (c['phase'] != 5) & (c['passes'] < o.max_ls)
@@ -1177,7 +1233,7 @@ class IpPasSolver:
     def candidate(c):
       """The primal point evaluated in this pass (one model evaluation)."""
       ph = c['phase']
-      cur_, d_ = c['cur'], c['d']
+      cur_, d_ = self._eff_cur(c), self._eff_d(c)
       admax = self._max_step_dual(cur_, d_, mode)
       a_soft = jnp.minimum(c['apmax'], admax)
       a = jnp.where(ph == 0, c['apmax'],
@@ -1188,7 +1244,7 @@ class IpPasSolver:
 
     def soc_solve(c):
       """Second-order correction direction (``try_second_order_correction``)."""
-      cur_, lin_ = c['cur'], self._ctx['lin']
+      cur_, lin_ = self._ctx['cur'], self._ctx['lin']
       acc = c['soc_acc']
       sys, red = self._assemble(cur_, lin_, mode, refs, delta_w, False)
       b = self._full_rhs(cur_, lin_, mode, refs, g=acc)
@@ -1209,10 +1265,44 @@ class IpPasSolver:
       # A failed SOC solve sets phase back to 2 (backtracking) and is
       # handled below without evaluating a point.
       tpt, a, dsel = candidate(c)
-      vals = self._values(tpt.x, tpt.w, tpt.s, params)
-      theta, barr, ok, cvec = self._trial_merit(tpt, vals, mode, refs)
       ph = c['phase']
       skip_eval = need_soc & (ph == 2)
+      K = self._K
+      is_bt = ph == 2
+      match = (c['cache_a'] == a) & (jnp.arange(K) < c['cache_n'])
+      hit = is_bt & jnp.any(match)
+
+      def evaluate(_):
+        # One (batched) model evaluation.  Backtracking trials evaluate the
+        # next K step lengths of the sequence; other phases one point.
+        def nxt(prev, _):
+          return prev * o.alpha_red_factor, prev
+        _, alphas = jax.lax.scan(nxt, a, None, length=K)
+        alphas = jnp.where(is_bt, alphas, a)
+        pts = jax.vmap(lambda al: self._set_primal(self._eff_cur(c), dsel, al,
+                                                   mode))(alphas)
+        vals = jax.vmap(lambda t: self._values(t.x, t.w, t.s, params))(pts)
+        th, br, okv, cv = jax.vmap(
+            lambda t, v: self._trial_merit(t, v, mode, refs))(pts, vals)
+        return th, br, okv, _tmap(lambda l: l[0], cv), alphas
+
+      def lookup(_):
+        j = jnp.argmax(match)
+        zero_c = _tmap(jnp.zeros_like, self._ctx['lin'].c)
+        sel = lambda v: jnp.full((K,), v[j])
+        return (sel(c['cache_th']), sel(c['cache_barr']), sel(c['cache_ok']),
+                zero_c, jnp.full((K,), a))
+
+      th_v, br_v, ok_v, cvec, alphas = jax.lax.cond(
+          hit | skip_eval, lookup, evaluate, None)
+      theta, barr, ok = th_v[0], br_v[0], ok_v[0]
+      fill = is_bt & ~hit & ~skip_eval
+      c = dict(c, nevals=c['nevals'] + (~hit & ~skip_eval).astype(jnp.int64),
+               cache_a=jnp.where(fill, alphas, c['cache_a']),
+               cache_th=jnp.where(fill, th_v, c['cache_th']),
+               cache_barr=jnp.where(fill, br_v, c['cache_barr']),
+               cache_ok=jnp.where(fill, ok_v, c['cache_ok']),
+               cache_n=jnp.where(fill, K, c['cache_n']))
       branches = [functools.partial(f, a=a, tpt=tpt, theta=theta, barr=barr,
                                     ok=ok, cvec=cvec)
                   for f in (self._ph_tiny, self._ph_soft, self._ph_bt,
@@ -1226,6 +1316,12 @@ class IpPasSolver:
     return c
 
   # --- line-search phases ----------------------------------------------------
+  def _eff_cur(self, c):
+    return _where(c['restored'], self._ctx['A'].stored_it, self._ctx['cur'])
+
+  def _eff_d(self, c):
+    d = _where(c['restored'], self._ctx['A'].stored_dir, self._ctx['d'])
+    return _where(c['soc_taken'], c['dsoc'], d)
   def _bt_advance(self, c):
     """``alpha_primal *= alpha_red_factor; n_steps++`` and loop test."""
     o = self.opt
@@ -1272,8 +1368,8 @@ class IpPasSolver:
       cur_, lin_, d_ = A.stored_it, A.stored_lin, A.stored_dir
       apmax = self._max_step_primal(cur_, d_.ds, d_.dp, d_.dn, ctx['mode'])
       amin = self._alpha_min(l, cur_, lin_, d_, ctx['mode'], ctx['refs'])
-      return dict(cc, cur=cur_, d=d_, ls=l, apmax=apmax,
-                  restored=jnp.asarray(True),
+      return dict(cc, ls=l, apmax=apmax,
+                  restored=jnp.asarray(True), cache_n=jnp.asarray(0),
                   alpha=apmax * o.alpha_red_factor, alpha_min=amin,
                   atest=apmax, soc_taken=jnp.asarray(False),
                   accept=jnp.asarray(False), eval_error=jnp.asarray(False),
@@ -1282,7 +1378,11 @@ class IpPasSolver:
     def finish(cc):
       return self._ls_after(cc)
 
-    return _scond(stop, restart, finish, c)
+    # FATROP sets skip_first_trial_point after stop_watchdog(), but the
+    # ``if (!in_watchdog_) done = true`` that follows ends the loop, so no
+    # backtracking retry happens: the restored iterate goes straight to the
+    # rejected-step branch (filter augmentation + soft restoration).
+    return _scond(stop, lambda cc: self._ls_after(restart(cc)), finish, c)
 
   def _ls_after(self, c):
     """Post backtracking: soft restoration attempt or done."""
@@ -1300,14 +1400,15 @@ class IpPasSolver:
     ls = c['ls']
     flag = ok & ls.tiny_step_last_iteration
     tflag = c['tiny_flag'] | flag
-    dy = _linf(c['d'].dy)
+    dy = _linf(self._eff_d(c).dy)
     ls = ls._replace(tiny_step_last_iteration=dy >= o.tiny_step_y_tol)
     # A non-finite tiny trial falls back to the ordinary line search.
     cnt = ls.soft_resto_counter + (ls.in_soft_resto & ~ok).astype(jnp.int32)
     ls = ls._replace(soft_resto_counter=cnt)
     nxt = jnp.where(ls.in_soft_resto,
                     jnp.where(cnt > o.max_soft_resto_iters, 5, 1), 2)
-    return dict(c, ls=ls, tiny_flag=tflag, trial=tpt, trial_barr=barr, tiny=ok,
+    return dict(c, ls=ls, tiny_flag=tflag, trial_alpha=a, trial_barr=barr,
+                tiny=ok,
                 accept=ok, outcome=jnp.where(ok, 0, 2),
                 alpha_outer=jnp.where(ok, 0.0, c['alpha_outer']),
                 typ=jnp.where(ok, T_TINY, c['typ']),
@@ -1316,10 +1417,9 @@ class IpPasSolver:
   def _ph_soft(self, c, *, a, tpt, theta, barr, ok, cvec):
     """``try_soft_resto_step``: the pd-error test needs the trial Jacobian
     and is completed by the outer loop (outcome 1)."""
-    t = self._dual_step(c['cur'], c['d'], tpt, a, a, self._ctx['mode'])
     acc, ls = self._check_acceptability(c['ls'], theta, barr, 0.0)
     kind = jnp.where(c['phase'] == 1, 0, 1)
-    return dict(c, ls=ls, trial=t, trial_barr=barr, satisfies=acc,
+    return dict(c, ls=ls, trial_alpha=a, trial_barr=barr, satisfies=acc,
                 soft_kind=kind, outcome=jnp.where(acc, 0, 1), alpha_outer=a,
                 phase=jnp.asarray(5), typ=jnp.where(acc, T_SOFT_ORIG, T_SOFT))
 
@@ -1329,7 +1429,7 @@ class IpPasSolver:
     acc = acc & ok
     ls = _where(ok, ls, c['ls'])
     c = dict(c, ls=ls, accept=acc, eval_error=c['eval_error'] | ~ok,
-             trial=tpt, trial_barr=barr)
+             trial_alpha=a, trial_barr=barr)
     in_w = ls.in_watchdog
     first = c['alpha'] == c['apmax']
     try_soc = (~acc & ~in_w & ok & first & (c['th_cur'] <= theta) &
@@ -1337,7 +1437,7 @@ class IpPasSolver:
 
     def to_soc(cc):
       acc0 = _tmap(lambda g0, gt: g0 + cc['alpha'] * gt,
-                   self._cviol(self._ctx['lin'].c, cc['cur'],
+                   self._cviol(self._ctx['lin'].c, self._ctx['cur'],
                                self._ctx['mode']), cvec)
       return dict(cc, phase=jnp.asarray(3), soc_count=jnp.asarray(0),
                   theta_soc_old=theta, soc_acc=acc0)
@@ -1356,7 +1456,8 @@ class IpPasSolver:
     def accepted(cc):
       return self._bt_pass_end(dict(
           cc, accept=jnp.asarray(True), soc_taken=jnp.asarray(True),
-          d=cc['dsoc'], alpha=cc['alpha_soc'], trial=tpt, trial_barr=barr))
+          alpha=cc['alpha_soc'], trial_alpha=cc['alpha_soc'],
+          trial_barr=barr))
 
     def rejected(cc):
       cnt = cc['soc_count'] + 1
@@ -1508,7 +1609,12 @@ class IpPasSolver:
     mode = S.mode
     ctx = self._ctx
     A = ctx['A']._replace(ls=c['ls'], tiny_step_flag=c['tiny_flag'])
-    cur, d = c['cur'], c['d']
+    cur, d = self._eff_cur(c), self._eff_d(c)
+    mode_ = ctx['mode']
+    tprim = self._set_primal(cur, d, c['trial_alpha'], mode_)
+    is_soft = (c['typ'] == T_SOFT) | (c['typ'] == T_SOFT_ORIG)
+    c_trial = _where(is_soft, self._dual_step(cur, d, tprim, c['trial_alpha'],
+                                              c['trial_alpha'], mode_), tprim)
     lin = _where(c['restored'], A.stored_lin, ctx['lin'])
     outcome = c['outcome']
     accept = outcome == 0
@@ -1530,8 +1636,8 @@ class IpPasSolver:
     ordinary = ordinary | soft_inphase_sat
     admax = self._max_step_dual(cur, d, mode)
     a_pr = jnp.where(soft_inphase_sat | tiny, 0.0, c['alpha_outer'])
-    trial_ord = self._dual_step(cur, d, c['trial'], a_pr, admax, mode)
-    trial = _where(ordinary, trial_ord, c['trial'])
+    trial_ord = self._dual_step(cur, d, c_trial, a_pr, admax, mode)
+    trial = _where(ordinary, trial_ord, c_trial)
     ls = ls._replace(watchdog_shortened_iter_count=jnp.where(
         ordinary, jnp.where(c['n_steps'] == 0, 0,
                             ls.watchdog_shortened_iter_count + 1),
@@ -1542,7 +1648,7 @@ class IpPasSolver:
                     ls=c['n_steps'] + 1, typ=c['typ'], d_norm=d_norm,
                     rg=jnp.asarray(delta_w, d_norm.dtype))
     S = S._replace(cur=cur, lin=lin, dir=d, stats=S.stats.at[0].add(
-        c['nkkt']).at[1].add(c['passes']))
+        c['nkkt']).at[1].add(c['nevals']))
     S = self._store_active(S, A)
 
     def accepted(S_):
@@ -1819,17 +1925,23 @@ class IpPasSolver:
                          lambda: S_.lin)
       S_ = S_._replace(lin=lin, need_lin=jnp.asarray(False),
                        stats=S_.stats.at[2].add(S_.need_lin.astype(jnp.int64)))
-      S_ = _scond(S_.pending == P_INIT, self._init_phase, lambda q: q, S_)
-      S_ = _scond(S_.pending == P_SOFT, self._finish_soft,
-                        lambda q: q, S_)
-      S_ = _scond(
-          S_.pending == P_CHECK,
-          lambda q: _scond(q.mode == 1, self._check_resto,
-                                 self._check_orig, q),
-          lambda q: q, S_)
+      # One switch per pass (no frequently taken identity branches: XLA
+      # materializes every pass-through leaf of an untaken-work branch).
+      def check(q):
+        return _scond(q.mode == 1, self._check_resto, self._check_orig, q)
+
+      def soft_then_check(q):
+        q = self._finish_soft(q)
+        return _scond(q.pending == P_CHECK, check, lambda r: r, q)
+
+      phase = jnp.where(S_.pending == P_INIT, 0,
+                        jnp.where(S_.pending == P_SOFT, 1,
+                                  jnp.where(S_.pending == P_CHECK, 2, 3)))
+      S_ = _sswitch(phase, [self._init_phase, soft_then_check, check,
+                            lambda q: q], S_)
       S_ = _scond((S_.status == CONTINUE) & (S_.pending == P_NONE) &
                   ~S_.need_lin,
-                        lambda q: self._iteration(q, params), lambda q: q, S_)
+                  lambda q: self._iteration(q, params), lambda q: q, S_)
       return S_
 
     S = _swhile(cond, body, S)
