@@ -1,0 +1,741 @@
+{
+  "PushSphere2d": [
+    {
+      "smoothing": 2e-05,
+      "force": [
+        0.00010461093999135289
+      ],
+      "force_dx": [
+        [
+          0.00020884726096806046,
+          0.0001767249075631168,
+          -0.00020884726096806046,
+          -0.0001767249075631168,
+          0.00013827503635919193,
+          0.00011700724685396744,
+          -0.0003896841933759045,
+          -0.0003297476956793628
+        ]
+      ],
+      "force_fd_pusher_x": [
+        0.0002088479831986018
+      ],
+      "log_force_gradient_pusher": [
+        [
+          1.9964189308051692,
+          1.6893539774876778
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          1.9962281067759673,
+          1.6891925036969027
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.013879488658155423
+        ],
+        [
+          0.01174471400183202
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          -0.00014808418655590477,
+          0.0001750006673158876
+        ],
+        [
+          0.00017500066731588752,
+          -0.00020680961467444951
+        ]
+      ]
+    },
+    {
+      "smoothing": 2e-08,
+      "force": [
+        1.0462476050283787e-07
+      ],
+      "force_dx": [
+        [
+          2.0890321155619254e-07,
+          1.7677225251018444e-07,
+          -2.0890321155619254e-07,
+          -1.7677225251018444e-07,
+          1.38294166107511e-07,
+          1.1702343429634861e-07,
+          -3.8973810448480365e-07,
+          -3.297933148351643e-07
+        ]
+      ],
+      "force_fd_pusher_x": [
+        2.0890321229511435e-07
+      ],
+      "log_force_gradient_pusher": [
+        [
+          1.996689985737422,
+          1.6895833420367985
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          1.8224963841998216,
+          1.5421820881868533
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.013879488658155423
+        ],
+        [
+          0.01174471400183202
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          -0.00014808418655590477,
+          0.0001750006673158876
+        ],
+        [
+          0.00017500066731588752,
+          -0.00020680961467444951
+        ]
+      ]
+    },
+    {
+      "smoothing": 2e-11,
+      "force": [
+        1.0462516439596154e-10
+      ],
+      "force_dx": [
+        [
+          2.0890482522200766e-10,
+          1.7677361798148954e-10,
+          -2.0890482522200766e-10,
+          -1.7677361798148954e-10,
+          1.3829471088951034e-10,
+          1.1702389528658637e-10,
+          -3.897396397795291e-10,
+          -3.2979461398947066e-10
+        ]
+      ],
+      "force_fd_pusher_x": [
+        2.0890482522989361e-10
+      ],
+      "log_force_gradient_pusher": [
+        [
+          1.9966977010558584,
+          1.6895898706785009
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          0.02067417858883988,
+          0.017494327113128177
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.013879488658155423
+        ],
+        [
+          0.01174471400183202
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          -0.00014808418655590477,
+          0.0001750006673158876
+        ],
+        [
+          0.00017500066731588752,
+          -0.00020680961467444951
+        ]
+      ]
+    },
+    {
+      "smoothing": 0.0,
+      "force": [
+        -0.0
+      ],
+      "force_dx": [
+        [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ]
+      ],
+      "force_fd_pusher_x": [
+        0.0
+      ],
+      "log_force_gradient_pusher": [
+        [
+          NaN,
+          NaN
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          NaN,
+          NaN
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.013879488658155423
+        ],
+        [
+          0.01174471400183202
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          -0.00014808418655590477,
+          0.0001750006673158876
+        ],
+        [
+          0.00017500066731588752,
+          -0.00020680961467444951
+        ]
+      ]
+    }
+  ],
+  "PushBox2d": [
+    {
+      "smoothing": 2e-05,
+      "force": [
+        0.00013138034859224186
+      ],
+      "force_dx": [
+        [
+          0.00034280470755082863,
+          0.00026208888748998705,
+          -0.00034280470755082863,
+          -0.00026208888748998705,
+          -1.2518791139878742e-06,
+          4.6856405877229124e-05,
+          3.582370230658226e-05,
+          -0.00021021285568876785,
+          -0.00016071661114901278,
+          -6.47563202936921e-07
+        ]
+      ],
+      "force_fd_pusher_x": [
+        0.00034280719277514967
+      ],
+      "log_force_gradient_pusher": [
+        [
+          2.609254056820729,
+          1.9948865282997403
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          2.6090554688662273,
+          1.994734699299386
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.006848453033396863
+        ],
+        [
+          0.005235931739447523
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ]
+    },
+    {
+      "smoothing": 2e-08,
+      "force": [
+        1.3143342285031364e-07
+      ],
+      "force_dx": [
+        [
+          3.430853007281833e-07,
+          2.623032103819005e-07,
+          -3.430853007281833e-07,
+          -2.623032103819005e-07,
+          -1.2529701391477793e-09,
+          4.687836455897409e-08,
+          3.5840490646685355e-08,
+          -2.1031136937351053e-07,
+          -1.607919290238962e-07,
+          -6.478666755148284e-10
+        ]
+      ],
+      "force_fd_pusher_x": [
+        3.4308530320596103e-07
+      ],
+      "log_force_gradient_pusher": [
+        [
+          2.610335280691235,
+          1.9957116286976053
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          2.425772450485684,
+          1.8546055458157837
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.006848453033396863
+        ],
+        [
+          0.005235931739447523
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ]
+    },
+    {
+      "smoothing": 2e-11,
+      "force": [
+        1.314350149149899e-10
+      ],
+      "force_dx": [
+        [
+          3.430936159945225e-10,
+          2.6230956755176867e-10,
+          -3.430936159945225e-10,
+          -2.6230956755176867e-10,
+          -1.2530005733887478e-12,
+          4.6879009538186765e-11,
+          3.5840983760548385e-11,
+          -2.1031426295699447e-10,
+          -1.60794141290744e-10,
+          -6.478755892331766e-13
+        ]
+      ],
+      "force_fd_pusher_x": [
+        3.430936160083985e-10
+      ],
+      "log_force_gradient_pusher": [
+        [
+          2.6103669270812655,
+          1.9957358221583978
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          0.033864266561394046,
+          0.025890662790178258
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.006848453033396863
+        ],
+        [
+          0.005235931739447523
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ]
+    },
+    {
+      "smoothing": 0.0,
+      "force": [
+        -0.0
+      ],
+      "force_dx": [
+        [
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN,
+          NaN
+        ]
+      ],
+      "force_fd_pusher_x": [
+        0.0
+      ],
+      "log_force_gradient_pusher": [
+        [
+          NaN,
+          NaN
+        ]
+      ],
+      "relaxed_log_force_gradient_pusher": [
+        [
+          NaN,
+          NaN
+        ]
+      ],
+      "dynamics_object_velocity_dforce": [
+        [
+          0.006848453033396863
+        ],
+        [
+          0.005235931739447523
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_zero_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ],
+      "dynamics_object_velocity_dpusher_pushed_force": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0
+        ]
+      ]
+    }
+  ],
+  "representations": [
+    {
+      "condim": 1,
+      "cone": "mjtCone.mjCONE_PYRAMIDAL",
+      "ncf": 1,
+      "types": [
+        "Type.FRICTIONLESS"
+      ],
+      "force": [
+        0.00010461093999135289
+      ],
+      "cone_residual_at_force": [],
+      "cone_residual_at_zero": [],
+      "contact_jacobian": [
+        [
+          -0.7633718761985484,
+          -0.6459592701007612,
+          0.7633718761985484,
+          0.6459592701007612
+        ]
+      ]
+    },
+    {
+      "condim": 1,
+      "cone": "mjtCone.mjCONE_ELLIPTIC",
+      "error": "condim=1 with ConeType.ELLIPTIC not implemented."
+    },
+    {
+      "condim": 3,
+      "cone": "mjtCone.mjCONE_PYRAMIDAL",
+      "ncf": 4,
+      "types": [
+        "Type.PYRAMIDAL"
+      ],
+      "force": [
+        0.00010460768436869547,
+        0.00010460768436869547,
+        0.00010460768436869547,
+        0.00010460768436869547
+      ],
+      "cone_residual_at_force": [],
+      "cone_residual_at_zero": [],
+      "contact_jacobian": [
+        [
+          -0.11741260609778725,
+          -1.4093311462993094,
+          0.11741260609778725,
+          1.4093311462993094
+        ],
+        [
+          -1.4093311462993094,
+          0.11741260609778725,
+          1.4093311462993094,
+          -0.11741260609778725
+        ],
+        [
+          -0.7633718761985484,
+          -0.6459592701007612,
+          0.7633718761985484,
+          0.6459592701007612
+        ],
+        [
+          -0.7633718761985484,
+          -0.6459592701007612,
+          0.7633718761985484,
+          0.6459592701007612
+        ]
+      ]
+    },
+    {
+      "condim": 3,
+      "cone": "mjtCone.mjCONE_ELLIPTIC",
+      "ncf": 3,
+      "types": [
+        "Type.ELLIPTIC"
+      ],
+      "force": [
+        0.00010461093999135289,
+        5.538318421165549e-24,
+        -0.0
+      ],
+      "cone_residual_at_force": [
+        1.0943448765874435e-08
+      ],
+      "cone_residual_at_zero": [
+        0.0
+      ],
+      "contact_jacobian": [
+        [
+          -0.7633718761985484,
+          -0.6459592701007612,
+          0.7633718761985484,
+          0.6459592701007612
+        ],
+        [
+          0.6459592701007612,
+          -0.7633718761985484,
+          -0.6459592701007612,
+          0.7633718761985484
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      ]
+    }
+  ],
+  "relu_tails": [
+    {
+      "epsilon": 0.001,
+      "name": "reciprocal_approx_relu",
+      "value": 6.234413965087282e-07,
+      "derivative": 1.5547166995230126e-06,
+      "autodiff": 1.5547166995230126e-06,
+      "dlog": 2.4937655860349124
+    },
+    {
+      "epsilon": 0.001,
+      "name": "algebraic_smooth_relu",
+      "value": 1.5624993898732953e-07,
+      "derivative": 3.9062454226801435e-07,
+      "autodiff": 3.9062454226801435e-07,
+      "dlog": 2.499998046717257
+    },
+    {
+      "epsilon": 0.001,
+      "name": "softplus",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 0.001,
+      "name": "local_smooth_relu",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-05,
+      "name": "reciprocal_approx_relu",
+      "value": 6.249843753906153e-11,
+      "derivative": 1.5624218779295898e-10,
+      "autodiff": 1.56242187792959e-10,
+      "dlog": 2.4999375015624605
+    },
+    {
+      "epsilon": 1e-05,
+      "name": "algebraic_smooth_relu",
+      "value": 1.5625001292818297e-11,
+      "derivative": 3.9062475476470127e-11,
+      "autodiff": 3.906253098762136e-11,
+      "dlog": 2.4999982236433076
+    },
+    {
+      "epsilon": 1e-05,
+      "name": "softplus",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-05,
+      "name": "local_smooth_relu",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-08,
+      "name": "reciprocal_approx_relu",
+      "value": 6.249999843750004e-17,
+      "derivative": 1.562499921875003e-16,
+      "autodiff": 1.562499921875003e-16,
+      "dlog": 2.4999999375000015
+    },
+    {
+      "epsilon": 1e-08,
+      "name": "algebraic_smooth_relu",
+      "value": 2.7755575615628914e-17,
+      "derivative": 5.551115123125783e-17,
+      "autodiff": 5.551115123125783e-17,
+      "dlog": 2.0
+    },
+    {
+      "epsilon": 1e-08,
+      "name": "softplus",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-08,
+      "name": "local_smooth_relu",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-10,
+      "name": "reciprocal_approx_relu",
+      "value": 6.2499999984375004e-21,
+      "derivative": 1.5624999992187496e-20,
+      "autodiff": 1.5624999992187496e-20,
+      "dlog": 2.499999999374999
+    },
+    {
+      "epsilon": 1e-10,
+      "name": "algebraic_smooth_relu",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-10,
+      "name": "softplus",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    },
+    {
+      "epsilon": 1e-10,
+      "name": "local_smooth_relu",
+      "value": 0.0,
+      "derivative": 0.0,
+      "autodiff": 0.0,
+      "dlog": null
+    }
+  ]
+}

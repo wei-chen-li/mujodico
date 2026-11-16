@@ -1,0 +1,228 @@
+{
+  "args": {
+    "label": "ippas_floor",
+    "form": "forward",
+    "solver": "ippas",
+    "force_floor": 0.01,
+    "force_bound_kind": "edges",
+    "gap_margin": null,
+    "gap_copies": 4,
+    "gap_kind": "position",
+    "smoothing": 1e-05,
+    "hessian": "gn",
+    "iterations": 500,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "inner_tolerance": null,
+    "inner_iterations": null,
+    "init": null,
+    "warm_duals": false,
+    "force_scale": 1.0,
+    "accept_every": false,
+    "print_level": 0
+  },
+  "options": {
+    "max_iter": 500,
+    "print_level": 0,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "accept_every_trial_step": "no"
+  },
+  "info": {
+    "complementarity": 0.0035955810449159356,
+    "dual_error": 4.204518032271174,
+    "error": 4.204518032271174,
+    "iter_count": 500,
+    "mu": 0.002828427124746191,
+    "obj_val": 9.092562977028141,
+    "primal_error": 0.02163828867571313,
+    "status": 3,
+    "success": false
+  },
+  "initial_linear_hash": "8fc3121e01a2817b3550f212c689bfa3c02d2f694b756570d4a993b5c9f3448c",
+  "compile_seconds": 44.134287422988564,
+  "solve_seconds": 188.37511128885671,
+  "objective": 9.092562977028141,
+  "initial_objective": 8.34845162277146,
+  "status": 3,
+  "iterations": 500,
+  "last_iteration": {
+    "iter": 500,
+    "mu": 0.002828427124746191,
+    "inf_pr": 0.02163828867571313,
+    "inf_du": 4.204518032271174,
+    "objective": 9.092562977028141
+  },
+  "ncf": 32,
+  "nx": 14,
+  "N": 100,
+  "initial_state": [
+    0.5235987755982988,
+    -1.0471975511965976,
+    -0.5235987755982988,
+    1.0471975511965976,
+    0.0,
+    0.25,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "goal_state": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.25,
+    1.5707963267948966,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "constraint_violation": 0.02163828867571313,
+  "force_equality_defect": 0.02163828867571313,
+  "dynamics_defect": 4.302966724273327e-05,
+  "bound_violation": 0.0,
+  "position_error_m": 0.0034228776223089795,
+  "angle_error_radians": 0.05133927354306822,
+  "contacts": {
+    "left": {
+      "min_gap": 3.404240317900209e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [
+        {
+          "release": 73,
+          "recontact": 82,
+          "duration_steps": 9
+        }
+      ],
+      "steps_in_contact_0p5mm": 68,
+      "steps_released_2mm": 9
+    },
+    "right": {
+      "min_gap": -4.455456159094262e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [],
+      "steps_in_contact_0p5mm": 69,
+      "steps_released_2mm": 9
+    }
+  },
+  "replay": {
+    "smooth": {
+      "objective": 9.095580919652372,
+      "position_error_m": 0.0034235159256536868,
+      "angle_error_radians": 0.051650901377119585,
+      "max_state_difference": 0.00243181520992769,
+      "contacts": {
+        "left": {
+          "min_gap": 3.4035159284337424e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [
+            {
+              "release": 73,
+              "recontact": 82,
+              "duration_steps": 9
+            }
+          ],
+          "steps_in_contact_0p5mm": 68,
+          "steps_released_2mm": 9
+        },
+        "right": {
+          "min_gap": -4.4658750235390676e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 69,
+          "steps_released_2mm": 9
+        }
+      }
+    },
+    "zero": {
+      "objective": 9.034571765694642,
+      "position_error_m": 0.003703231511869243,
+      "angle_error_radians": 0.017994704922517313,
+      "max_state_difference": 0.25801514856789404,
+      "contacts": {
+        "left": {
+          "min_gap": -9.228685695999994e-06,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 74,
+          "steps_released_2mm": 7
+        },
+        "right": {
+          "min_gap": -3.744451429048279e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 73,
+          "steps_released_2mm": 8
+        }
+      }
+    }
+  },
+  "contact_pairs": [
+    [
+      0,
+      2
+    ],
+    [
+      0,
+      3
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      4,
+      3
+    ]
+  ],
+  "object_geom": 4,
+  "finger_contact_masks": {
+    "left": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ],
+    "right": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  }
+}

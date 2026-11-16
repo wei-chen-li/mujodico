@@ -1,0 +1,26 @@
+{
+  "sphere_baseline": {
+    "composed_replay_max_state_difference_from_optimized": 0.0018214287340546642,
+    "composed_replay_max_state_difference_from_native_replay": 0.00014887920339839988,
+    "composed_one_step_defect_max": 0.0008080637636074407,
+    "composed_replay_position_error_m": 0.0032449903235746294
+  },
+  "box_baseline": {
+    "composed_replay_max_state_difference_from_optimized": 0.19822817465555753,
+    "composed_replay_max_state_difference_from_native_replay": 0.0036204585412048518,
+    "composed_one_step_defect_max": 0.10038149888906062,
+    "composed_replay_position_error_m": 0.01641686213533735
+  },
+  "circular_baseline": {
+    "composed_replay_max_state_difference_from_optimized": 1.135983272649175,
+    "composed_replay_max_state_difference_from_native_replay": 0.2113364739077832,
+    "composed_one_step_defect_max": 0.008019920083853105,
+    "composed_replay_hinge_error_radians": 1.1384967810416766
+  },
+  "square_baseline": {
+    "composed_replay_max_state_difference_from_optimized": 2.4815882412740495,
+    "composed_replay_max_state_difference_from_native_replay": 0.007041472876327726,
+    "composed_one_step_defect_max": 0.01630256167030411,
+    "composed_replay_hinge_error_radians": 2.451753936715465
+  }
+}

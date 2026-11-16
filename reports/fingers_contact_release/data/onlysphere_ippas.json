@@ -1,0 +1,193 @@
+{
+  "args": {
+    "label": "onlysphere_ippas",
+    "form": "forward",
+    "solver": "ippas",
+    "force_floor": 0.0,
+    "force_bound_kind": "edges",
+    "gap_margin": null,
+    "gap_copies": 4,
+    "gap_kind": "position",
+    "smoothing": 1e-05,
+    "hessian": "gn",
+    "iterations": 500,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "inner_tolerance": null,
+    "inner_iterations": null,
+    "init": null,
+    "warm_duals": false,
+    "force_scale": 1.0,
+    "accept_every": false,
+    "print_level": 0
+  },
+  "options": {
+    "max_iter": 500,
+    "print_level": 0,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "accept_every_trial_step": "no"
+  },
+  "info": {
+    "complementarity": 0.10000000000000002,
+    "dual_error": 65.65239215376711,
+    "error": 65.65239215376711,
+    "iter_count": 500,
+    "mu": 0.1,
+    "obj_val": 54.37148371003153,
+    "primal_error": 0.03166939645258915,
+    "status": 3,
+    "success": false
+  },
+  "initial_linear_hash": "4a70ce07477b6db82984ffa2e1c55d5ae50dbc9a274d373852bbac3dc180df54",
+  "initial_state_control_hash": "d852edbd769fa2a8d2cdd56a222362c06ce2bd0bfaf8fe32a3693fb62e8cd1a1",
+  "compile_seconds": 45.7171865128912,
+  "solve_seconds": 193.9144452828914,
+  "objective": 54.37148371003153,
+  "initial_objective": 8.34845162277146,
+  "status": 3,
+  "iterations": 500,
+  "last_iteration": {
+    "iter": 500,
+    "mu": 0.1,
+    "inf_pr": 0.03166939645258915,
+    "inf_du": 65.65239215376711,
+    "objective": 54.37148371003153
+  },
+  "ncf": 16,
+  "nx": 14,
+  "N": 100,
+  "initial_state": [
+    0.5235987755982988,
+    -1.0471975511965976,
+    -0.5235987755982988,
+    1.0471975511965976,
+    0.0,
+    0.25,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "goal_state": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.25,
+    1.5707963267948966,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "constraint_violation": 0.03166939645258915,
+  "force_equality_defect": 0.03166939645258915,
+  "dynamics_defect": 0.005272323786549529,
+  "bound_violation": 0.0,
+  "position_error_m": 0.0858627655473648,
+  "angle_error_radians": 1.5568546550218385,
+  "contacts": {
+    "left": {
+      "min_gap": -1.336899998172214e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [],
+      "steps_in_contact_0p5mm": 32,
+      "steps_released_2mm": 14
+    },
+    "right": {
+      "min_gap": -1.0246014033432616e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [],
+      "steps_in_contact_0p5mm": 36,
+      "steps_released_2mm": 17
+    }
+  },
+  "replay": {
+    "smooth": {
+      "objective": 54.37361202657369,
+      "position_error_m": 0.08575289184422646,
+      "angle_error_radians": 1.5572718236003795,
+      "max_state_difference": 0.027069645505856887,
+      "contacts": {
+        "left": {
+          "min_gap": -1.171499062607717e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 32,
+          "steps_released_2mm": 14
+        },
+        "right": {
+          "min_gap": -1.1027490172219045e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 36,
+          "steps_released_2mm": 17
+        }
+      }
+    },
+    "zero": {
+      "objective": 54.312614686619696,
+      "position_error_m": 0.08494579546823393,
+      "angle_error_radians": 1.56013465685183,
+      "max_state_difference": 0.17644503700155603,
+      "contacts": {
+        "left": {
+          "min_gap": -2.3456953358355626e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 87,
+          "steps_released_2mm": 14
+        },
+        "right": {
+          "min_gap": -2.3300565231379466e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 85,
+          "steps_released_2mm": 16
+        }
+      }
+    }
+  },
+  "contact_pairs": [
+    [
+      4,
+      0
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      4,
+      3
+    ]
+  ],
+  "object_geom": 4,
+  "finger_contact_masks": {
+    "left": [
+      true,
+      true,
+      false,
+      false
+    ],
+    "right": [
+      false,
+      false,
+      true,
+      true
+    ]
+  }
+}

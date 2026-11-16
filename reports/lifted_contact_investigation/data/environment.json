@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-15",
+  "repository_revision": "75fe4194370516bd0e1ebebabb10ff2d69a92155",
+  "python": "3.12.13",
+  "jax": "0.10.2",
+  "numpy": "2.5.3",
+  "scipy": "1.17.1",
+  "mujoco": "4.0.0",
+  "ipopt": [
+    3,
+    14,
+    19
+  ],
+  "device": "CPU",
+  "cpu": "Intel Core Ultra 9 285K",
+  "unsupported_case": "condim=1 + elliptic cone rejected at model-data creation",
+  "completed_experiment_runs": 46
+}

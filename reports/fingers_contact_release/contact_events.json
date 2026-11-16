@@ -1,0 +1,27 @@
+{
+  "onlysphere_ippas_left": [],
+  "onlysphere_ippas_right": [],
+  "ms_physical_limit_left": [
+    {
+      "release": 17,
+      "recontact": 20,
+      "duration_steps": 3,
+      "last_contact": 16,
+      "release_seconds": 0.34,
+      "recontact_seconds": 0.4,
+      "max_gap_mm": 3.694976808637229,
+      "material_contact_change_degrees": -5.9246084309286875
+    },
+    {
+      "release": 59,
+      "recontact": 73,
+      "duration_steps": 14,
+      "last_contact": 53,
+      "release_seconds": 1.18,
+      "recontact_seconds": 1.46,
+      "max_gap_mm": 4.412530842248907,
+      "material_contact_change_degrees": -30.213375246414152
+    }
+  ],
+  "ms_physical_limit_right": []
+}

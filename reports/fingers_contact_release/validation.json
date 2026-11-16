@@ -1,0 +1,60 @@
+{
+  "default": {
+    "objective": 7.578721047519005,
+    "angle_degrees": 90.02752284867017,
+    "position_error_mm": 0.6386678369987923,
+    "state_bound_violation": 0.0,
+    "control_bound_violation_before_clip": 6.589391032818526e-09,
+    "state_difference_from_saved_zero_replay": 4.013602443936337e-05,
+    "contact_pairs": [
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        4,
+        3
+      ]
+    ],
+    "inner_iterations": 20,
+    "inner_tolerance": 1e-05
+  },
+  "tight": {
+    "objective": 7.578731488592131,
+    "angle_degrees": 90.02714569995311,
+    "position_error_mm": 0.638875388268245,
+    "state_bound_violation": 0.0,
+    "control_bound_violation_before_clip": 6.589391032818526e-09,
+    "state_difference_from_saved_zero_replay": 4.6909609030532096e-08,
+    "contact_pairs": [
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        4,
+        2
+      ],
+      [
+        4,
+        3
+      ]
+    ],
+    "inner_iterations": 100,
+    "inner_tolerance": 1e-12
+  },
+  "label": "verify_physical",
+  "initial_state_control_hash": "d852edbd769fa2a8d2cdd56a222362c06ce2bd0bfaf8fe32a3693fb62e8cd1a1"
+}

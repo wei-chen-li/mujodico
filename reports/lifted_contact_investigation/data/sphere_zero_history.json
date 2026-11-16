@@ -1,0 +1,28 @@
+[
+  {
+    "alg_mod": 0,
+    "iter": 0,
+    "objective": 3.9746096187110824,
+    "inf_pr": 0.00999999,
+    "inf_du": NaN,
+    "mu": 0.1,
+    "d_norm": 0.0,
+    "regularization_size": 0.0,
+    "alpha_du": 0.0,
+    "alpha_pr": 0.0,
+    "ls_trials": 0
+  },
+  {
+    "alg_mod": 1,
+    "iter": 1,
+    "objective": 3.9746096187110824,
+    "inf_pr": 0.00999999,
+    "inf_du": 990.0499888500476,
+    "mu": 0.1,
+    "d_norm": 0.0,
+    "regularization_size": 1e+20,
+    "alpha_du": 0.0,
+    "alpha_pr": 0.0,
+    "ls_trials": 1
+  }
+]

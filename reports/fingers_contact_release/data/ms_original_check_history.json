@@ -1,0 +1,156 @@
+[
+  {
+    "alg_mod": 0,
+    "iter": 0,
+    "objective": 7.94421503054758,
+    "inf_pr": 0.0019082441506116882,
+    "inf_du": 517.2898318005928,
+    "mu": 1e-09,
+    "d_norm": 0.0,
+    "regularization_size": 0.0,
+    "alpha_du": 0.0,
+    "alpha_pr": 0.0,
+    "ls_trials": 0,
+    "unscaled": {
+      "x_L_violation": 0.0,
+      "x_U_violation": 0.0,
+      "compl_x_L": 5.3822816880981785e-06,
+      "compl_x_U": 9.090909159523627e-10,
+      "grad_lag_x": 517.2898318005928,
+      "g_violation": 0.0019082441506116882,
+      "compl_g": 0.011774759463060551
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 1,
+    "objective": 7.944220483402808,
+    "inf_pr": 5.400737763672225e-07,
+    "inf_du": 0.20182424477323044,
+    "mu": 1e-09,
+    "d_norm": 0.0040827354899925705,
+    "regularization_size": 1.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 9.179641491385837e-09,
+      "x_U_violation": 0.0,
+      "compl_x_L": 1.1042867277816034e-08,
+      "compl_x_U": 1.0022660865100893e-09,
+      "grad_lag_x": 0.20182424477323044,
+      "g_violation": 5.400737763672225e-07,
+      "compl_g": 1.451070208930298e-07
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 2,
+    "objective": 7.944220314861604,
+    "inf_pr": 2.858948013328977e-07,
+    "inf_du": 0.15926678038820236,
+    "mu": 1e-09,
+    "d_norm": 0.0005788718013880961,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.6437504023552014,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 1.7453292588953673e-08,
+      "x_U_violation": 0.0,
+      "compl_x_L": 2.827189450586704e-09,
+      "compl_x_U": 1.0354425393805512e-09,
+      "grad_lag_x": 0.15926678038820236,
+      "g_violation": 2.858948013328977e-07,
+      "compl_g": 6.24150523573343e-08
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 3,
+    "objective": 7.944220426631132,
+    "inf_pr": 6.045181007513004e-07,
+    "inf_du": 0.23802704394177182,
+    "mu": 1e-09,
+    "d_norm": 0.00019353331799977361,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 1.6587979212445703e-08,
+      "x_U_violation": 0.0,
+      "compl_x_L": 1.0007025948841665e-09,
+      "compl_x_U": 1.0000018887689534e-09,
+      "grad_lag_x": 0.23802704394177182,
+      "g_violation": 6.045181007513004e-07,
+      "compl_g": 5.694672485615254e-08
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 4,
+    "objective": 7.944218755696548,
+    "inf_pr": 6.029491609161257e-07,
+    "inf_du": 50.974224835434434,
+    "mu": 1e-09,
+    "d_norm": 0.4966288794734634,
+    "regularization_size": 0.0,
+    "alpha_du": 0.7108878748513228,
+    "alpha_pr": 0.0025953523686294095,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 1.7453292588953673e-08,
+      "x_U_violation": 0.0,
+      "compl_x_L": 1.5465373930107408e-09,
+      "compl_x_U": 1.0441247454173435e-09,
+      "grad_lag_x": 50.974224835434434,
+      "g_violation": 6.029491609161257e-07,
+      "compl_g": 5.6798905272338004e-08
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 5,
+    "objective": 7.944215048956133,
+    "inf_pr": 2.0939472378245227e-10,
+    "inf_du": 1.8341186678326743e-07,
+    "mu": 1e-09,
+    "d_norm": 0.0028848353777572986,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 1.7452884248925216e-08,
+      "x_U_violation": 0.0,
+      "compl_x_L": 1.1049743934399589e-09,
+      "compl_x_U": 1.0081415162733391e-09,
+      "grad_lag_x": 1.8341186678326743e-07,
+      "g_violation": 2.0939472378245227e-10,
+      "compl_g": 3.9286023388680304e-11
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 6,
+    "objective": 7.94421504886375,
+    "inf_pr": 1.1227130336521896e-14,
+    "inf_du": 3.312673306872218e-12,
+    "mu": 1e-09,
+    "d_norm": 1.24737340490813e-07,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled": {
+      "x_L_violation": 1.7453224643304566e-08,
+      "x_U_violation": 0.0,
+      "compl_x_L": 1.000002700957062e-09,
+      "compl_x_U": 1.00000000408523e-09,
+      "grad_lag_x": 3.312673306872218e-12,
+      "g_violation": 1.1227130336521896e-14,
+      "compl_g": 1.4241407158820877e-15
+    }
+  }
+]

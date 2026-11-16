@@ -1,0 +1,215 @@
+{
+  "args": {
+    "label": "ippas_baseline",
+    "form": "forward",
+    "solver": "ippas",
+    "force_floor": 0.0,
+    "gap_margin": null,
+    "gap_copies": 4,
+    "gap_kind": "position",
+    "smoothing": 1e-05,
+    "hessian": "gn",
+    "iterations": 500,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "inner_tolerance": null,
+    "inner_iterations": null,
+    "init": null,
+    "warm_duals": false,
+    "force_scale": 1.0,
+    "accept_every": false,
+    "print_level": 0
+  },
+  "options": {
+    "max_iter": 500,
+    "print_level": 0,
+    "mu_init": 0.1,
+    "mu_strategy": "monotone",
+    "accept_every_trial_step": "no"
+  },
+  "info": {
+    "complementarity": 0.16503785399953427,
+    "dual_error": 1570.1379818443675,
+    "error": 356.08838590129335,
+    "iter_count": 500,
+    "mu": 0.1,
+    "obj_val": 50.60508530429357,
+    "primal_error": 0.12297570584215514,
+    "status": 3,
+    "success": false
+  },
+  "initial_linear_hash": "8fc3121e01a2817b3550f212c689bfa3c02d2f694b756570d4a993b5c9f3448c",
+  "compile_seconds": 40.71690596686676,
+  "solve_seconds": 146.55980372801423,
+  "objective": 50.60508530429357,
+  "initial_objective": 8.34845162277146,
+  "status": 3,
+  "iterations": 500,
+  "last_iteration": {
+    "iter": 500,
+    "mu": 0.1,
+    "inf_pr": 0.12297570584215514,
+    "inf_du": 1570.1379818443675,
+    "objective": 50.60508530429357
+  },
+  "ncf": 32,
+  "nx": 14,
+  "N": 100,
+  "initial_state": [
+    0.5235987755982988,
+    -1.0471975511965976,
+    -0.5235987755982988,
+    1.0471975511965976,
+    0.0,
+    0.25,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "goal_state": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.25,
+    1.5707963267948966,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "constraint_violation": 0.12297570584215514,
+  "force_equality_defect": 0.12297570584215514,
+  "dynamics_defect": 0.00025056452287464115,
+  "bound_violation": 0.0,
+  "position_error_m": 0.14869787105087526,
+  "angle_error_radians": 1.2667803522041912,
+  "contacts": {
+    "left": {
+      "min_gap": -1.702671200734529e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [],
+      "steps_in_contact_0p5mm": 29,
+      "steps_released_2mm": 9
+    },
+    "right": {
+      "min_gap": -1.5946305616909573e-05,
+      "max_gap": 0.04032028948992282,
+      "regrasp_events": [],
+      "steps_in_contact_0p5mm": 38,
+      "steps_released_2mm": 14
+    }
+  },
+  "replay": {
+    "smooth": {
+      "objective": 50.657809443886094,
+      "position_error_m": 0.1486972988034339,
+      "angle_error_radians": 1.268157547384644,
+      "max_state_difference": 0.00714328620057416,
+      "contacts": {
+        "left": {
+          "min_gap": -1.7018655450909415e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 29,
+          "steps_released_2mm": 9
+        },
+        "right": {
+          "min_gap": -1.593725856370576e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 38,
+          "steps_released_2mm": 14
+        }
+      }
+    },
+    "zero": {
+      "objective": 49.62646348578397,
+      "position_error_m": 0.149955224377695,
+      "angle_error_radians": 1.2311624001814172,
+      "max_state_difference": 0.24439309683905674,
+      "contacts": {
+        "left": {
+          "min_gap": -2.9583527544688182e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 36,
+          "steps_released_2mm": 8
+        },
+        "right": {
+          "min_gap": -2.712780039315632e-05,
+          "max_gap": 0.04032028948992282,
+          "regrasp_events": [],
+          "steps_in_contact_0p5mm": 78,
+          "steps_released_2mm": 13
+        }
+      }
+    }
+  },
+  "contact_pairs": [
+    [
+      0,
+      2
+    ],
+    [
+      0,
+      3
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      4,
+      0
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      4,
+      3
+    ]
+  ],
+  "object_geom": 4,
+  "finger_contact_masks": {
+    "left": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ],
+    "right": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  }
+}

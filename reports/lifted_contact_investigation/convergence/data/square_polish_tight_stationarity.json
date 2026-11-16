@@ -1,0 +1,286 @@
+{
+  "source": "square_baseline",
+  "checkpoint": "square_polish_tight",
+  "max_stationarity": 3959.0908110733453,
+  "top_stationarity": [
+    {
+      "stage": 180,
+      "kind": "force",
+      "component": "contact_1",
+      "index": 2169,
+      "residual": -3959.0908110733453,
+      "primal_value": 1.7250891933521506e-07
+    },
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "pusher_y",
+      "index": 1285,
+      "residual": -326.6476118295691,
+      "primal_value": -0.08929093989644285
+    },
+    {
+      "stage": 181,
+      "kind": "force",
+      "component": "contact_1",
+      "index": 2181,
+      "residual": -279.8458602558221,
+      "primal_value": 2.37538920375011e-07
+    },
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "knob_angle",
+      "index": 1286,
+      "residual": -32.32985780359175,
+      "primal_value": -4.615966502355621
+    },
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 1284,
+      "residual": 25.768650198564746,
+      "primal_value": -0.09236314268131683
+    },
+    {
+      "stage": 218,
+      "kind": "state",
+      "component": "pusher_y",
+      "index": 2617,
+      "residual": -17.86161234352848,
+      "primal_value": -0.1272479926352162
+    },
+    {
+      "stage": 218,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 2616,
+      "residual": 15.737763529879524,
+      "primal_value": -0.016005163569877346
+    },
+    {
+      "stage": 49,
+      "kind": "force",
+      "component": "contact_0",
+      "index": 596,
+      "residual": 11.680044860813723,
+      "primal_value": 2.5872862481940273e-05
+    },
+    {
+      "stage": 80,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 960,
+      "residual": -11.048101883481761,
+      "primal_value": -0.1408496972819311
+    },
+    {
+      "stage": 74,
+      "kind": "control",
+      "component": "pusher_uy",
+      "index": 895,
+      "residual": 7.294798716091265,
+      "primal_value": 0.19995504183614715
+    },
+    {
+      "stage": 79,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 948,
+      "residual": -6.519542242023403,
+      "primal_value": -0.1420980226858059
+    },
+    {
+      "stage": 27,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 324,
+      "residual": -6.152907898388234,
+      "primal_value": -0.09352969309662723
+    }
+  ],
+  "worst_position_derivative_checks": [
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "pusher_y",
+      "index": 1285,
+      "analytic_lagrangian_gradient": -326.6476118295691,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": -50.40094030920162,
+          "negative_difference": -331.6908994081417,
+          "gradient_positive": 93.45352779550797,
+          "gradient_negative": -336.76193597695186,
+          "hessian_column_max_error": 2050777.6608533047,
+          "hessian_column_relative_error": 8.249101739602935
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": -326.5974650555582,
+          "negative_difference": -326.69776473185465,
+          "gradient_positive": -326.5473208310872,
+          "gradient_negative": -326.74792014269127,
+          "hessian_column_max_error": 0.006515788089018315,
+          "hessian_column_relative_error": 2.746289428803706e-08
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": -326.64712227308365,
+          "negative_difference": -326.64808108833563,
+          "gradient_positive": -326.6466088338616,
+          "gradient_negative": -326.6486148270098,
+          "hessian_column_max_error": 0.00197682689758949,
+          "hessian_column_relative_error": 8.23178054380821e-09
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": -326.64307747594984,
+          "negative_difference": -326.6495652100004,
+          "gradient_positive": -326.6476017996035,
+          "gradient_negative": -326.6476218595283,
+          "hessian_column_max_error": 0.2446042397932615,
+          "hessian_column_relative_error": 9.833359009276114e-07
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.07998408991290885,
+        0.10053043038982362
+      ],
+      "distance_to_projection_feature_boundary": [
+        1.5910087091147718e-05,
+        0.02053043038982362
+      ]
+    },
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "knob_angle",
+      "index": 1286,
+      "analytic_lagrangian_gradient": -32.32985780359175,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": -32.02712600110579,
+          "negative_difference": -32.63369283215067,
+          "gradient_positive": -31.72494729691462,
+          "gradient_negative": -32.93807974213446,
+          "hessian_column_max_error": 0.1042305507871788,
+          "hessian_column_relative_error": 1.777089836973702e-06
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": -32.32682523466535,
+          "negative_difference": -32.33289092964311,
+          "gradient_positive": -32.32379228793113,
+          "gradient_negative": -32.33592365040295,
+          "hessian_column_max_error": 1.9290597265353426e-05,
+          "hessian_column_relative_error": 3.6157213408563147e-10
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": -32.329786276343384,
+          "negative_difference": -32.32989423549773,
+          "gradient_positive": -32.32979714679525,
+          "gradient_negative": -32.32991846042428,
+          "hessian_column_max_error": 0.0013189522724132985,
+          "hessian_column_relative_error": 1.8596022647426007e-08
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": -32.326106000480145,
+          "negative_difference": -32.33175131394104,
+          "gradient_positive": -32.329857197024936,
+          "gradient_negative": -32.32985841016119,
+          "hessian_column_max_error": 0.035232787136919796,
+          "hessian_column_relative_error": 5.007598287397625e-07
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.07998408991290885,
+        0.10053043038982362
+      ],
+      "distance_to_projection_feature_boundary": [
+        1.5910087091147718e-05,
+        0.02053043038982362
+      ]
+    },
+    {
+      "stage": 107,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 1284,
+      "analytic_lagrangian_gradient": 25.768650198564746,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": 72.06631417586212,
+          "negative_difference": -17.711450429472524,
+          "gradient_positive": 119.77204842491876,
+          "gradient_negative": -59.79128184707856,
+          "hessian_column_max_error": 80.24848964007106,
+          "hessian_column_relative_error": 8.907996217352664e-05
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": 26.217658082272134,
+          "negative_difference": 25.31992090424732,
+          "gradient_positive": 26.66680993636199,
+          "gradient_negative": 24.871337113443037,
+          "hessian_column_max_error": 0.008589129894971848,
+          "hessian_column_relative_error": 9.509800299252311e-09
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": 25.773157012070786,
+          "negative_difference": 25.764168609263088,
+          "gradient_positive": 25.77762760491898,
+          "gradient_negative": 25.759672876864148,
+          "hessian_column_max_error": 0.00027152433176524937,
+          "hessian_column_relative_error": 3.448361144703014e-10
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": 25.768130873268607,
+          "negative_difference": 25.766736013195242,
+          "gradient_positive": 25.768739972170057,
+          "gradient_negative": 25.768560424917855,
+          "hessian_column_max_error": 0.1418607059167698,
+          "hessian_column_relative_error": 1.5245227079955209e-07
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.07998408991290885,
+        0.10053043038982362
+      ],
+      "distance_to_projection_feature_boundary": [
+        1.5910087091147718e-05,
+        0.02053043038982362
+      ]
+    }
+  ],
+  "closest_feature_side_gradients": {
+    "stage": 107,
+    "variable": "pusher_y",
+    "distance_moved_to_boundary": -1.598433507238317e-05,
+    "side_gradients": [
+      {
+        "step": 1e-06,
+        "gradient_positive": -328.15247194866686,
+        "gradient_negative": -328.35362141491095
+      },
+      {
+        "step": 1e-08,
+        "gradient_positive": -328.2520323835391,
+        "gradient_negative": -328.2540438782353
+      },
+      {
+        "step": 1e-10,
+        "gradient_positive": -328.2530280725624,
+        "gradient_negative": -328.25304818750203
+      }
+    ]
+  }
+}

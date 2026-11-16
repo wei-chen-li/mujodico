@@ -1,0 +1,240 @@
+{
+  "source": "box_baseline",
+  "checkpoint": "box_polish_tight",
+  "max_stationarity": 0.8892968681472153,
+  "top_stationarity": [
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "object_x",
+      "index": 743,
+      "residual": -0.8892968681472153,
+      "primal_value": 0.03608455694220084
+    },
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 741,
+      "residual": 0.8883988795221903,
+      "primal_value": -0.07168545218635178
+    },
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "object_y",
+      "index": 744,
+      "residual": 0.8163359470865039,
+      "primal_value": 0.029452504804701785
+    },
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "pusher_y",
+      "index": 742,
+      "residual": -0.8160767185201381,
+      "primal_value": 0.18038425126343335
+    },
+    {
+      "stage": 59,
+      "kind": "state",
+      "component": "object_y",
+      "index": 770,
+      "residual": 0.2513363939660666,
+      "primal_value": 0.017328049988147548
+    },
+    {
+      "stage": 57,
+      "kind": "control",
+      "component": "pusher_uy",
+      "index": 752,
+      "residual": -0.2511844416477349,
+      "primal_value": -0.4911212303383202
+    },
+    {
+      "stage": 59,
+      "kind": "state",
+      "component": "pusher_y",
+      "index": 768,
+      "residual": -0.250841544932058,
+      "primal_value": 0.159015460884332
+    },
+    {
+      "stage": 59,
+      "kind": "state",
+      "component": "object_x",
+      "index": 769,
+      "residual": -0.23857658141092222,
+      "primal_value": 0.02910890283448437
+    },
+    {
+      "stage": 59,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 767,
+      "residual": 0.23667769559813462,
+      "primal_value": -0.09247865635650135
+    },
+    {
+      "stage": 60,
+      "kind": "state",
+      "component": "object_x",
+      "index": 782,
+      "residual": -0.07382553894009314,
+      "primal_value": 0.02636297871795079
+    },
+    {
+      "stage": 60,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 780,
+      "residual": 0.07179857417914695,
+      "primal_value": -0.09901604698799943
+    },
+    {
+      "stage": 75,
+      "kind": "state",
+      "component": "object_x",
+      "index": 977,
+      "residual": -0.06315333701725956,
+      "primal_value": 0.013364290104825316
+    }
+  ],
+  "worst_position_derivative_checks": [
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "object_x",
+      "index": 743,
+      "analytic_lagrangian_gradient": -0.8892968681472153,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": -0.8888312010689979,
+          "negative_difference": -0.8897625509577757,
+          "gradient_positive": -0.8883655332433756,
+          "gradient_negative": -0.8902282054437333
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": -0.8892922103947554,
+          "negative_difference": -0.8893015248747526,
+          "gradient_positive": -0.8892875547864151,
+          "gradient_negative": -0.8893061815082496
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": -0.889296901112162,
+          "negative_difference": -0.8892968839882104,
+          "gradient_positive": -0.8892967750136043,
+          "gradient_negative": -0.88929696128082
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": -0.8892952287940182,
+          "negative_difference": -0.8892895165379969,
+          "gradient_positive": -0.8892968672158766,
+          "gradient_negative": -0.8892968690785531
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.14910038047831492,
+        0.11028981592999815
+      ],
+      "distance_to_projection_feature_boundary": [
+        0.0008996195216850744,
+        0.030289815929998146
+      ]
+    },
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "pusher_x",
+      "index": 741,
+      "analytic_lagrangian_gradient": 0.8883988795221903,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": 0.8883645623297267,
+          "negative_difference": 0.8884332124526354,
+          "gradient_positive": 0.888330216818708,
+          "gradient_negative": 0.8884675446183504
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": 0.8883985366958694,
+          "negative_difference": 0.8883992231048775,
+          "gradient_positive": 0.8883981928832244,
+          "gradient_negative": 0.8883995661613899
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": 0.8883988675042209,
+          "negative_difference": 0.888398872253369,
+          "gradient_positive": 0.8883988726558003,
+          "gradient_negative": 0.888398886388582
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": 0.8883945342666716,
+          "negative_difference": 0.8883988583101275,
+          "gradient_positive": 0.8883988794535286,
+          "gradient_negative": 0.8883988795908556
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.14910038047831492,
+        0.11028981592999815
+      ],
+      "distance_to_projection_feature_boundary": [
+        0.0008996195216850744,
+        0.030289815929998146
+      ]
+    },
+    {
+      "stage": 57,
+      "kind": "state",
+      "component": "object_y",
+      "index": 744,
+      "analytic_lagrangian_gradient": 0.8163359470865039,
+      "one_sided": [
+        {
+          "step": 0.0001,
+          "positive_difference": 0.816857757273049,
+          "negative_difference": 0.815814068500594,
+          "gradient_positive": 0.8173795146772017,
+          "gradient_negative": 0.8152921804122986
+        },
+        {
+          "step": 1e-06,
+          "positive_difference": 0.8163411611548799,
+          "negative_difference": 0.8163307281134269,
+          "gradient_positive": 0.8163463837502656,
+          "gradient_negative": 0.8163255104028901
+        },
+        {
+          "step": 1e-08,
+          "positive_difference": 0.8163361760991044,
+          "negative_difference": 0.8163358613746584,
+          "gradient_positive": 0.8163360514532738,
+          "gradient_negative": 0.8163358427197966
+        },
+        {
+          "step": 1e-10,
+          "positive_difference": 0.816322882792227,
+          "negative_difference": 0.8163347921947407,
+          "gradient_positive": 0.816335948130217,
+          "gradient_negative": 0.8163359460428719
+        }
+      ],
+      "pusher_in_box_frame": [
+        -0.14910038047831492,
+        0.11028981592999815
+      ],
+      "distance_to_projection_feature_boundary": [
+        0.0008996195216850744,
+        0.030289815929998146
+      ]
+    }
+  ]
+}

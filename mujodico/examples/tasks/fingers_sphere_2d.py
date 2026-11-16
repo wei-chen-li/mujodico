@@ -13,7 +13,7 @@ _XML = """
   <option iterations="20" tolerance="1e-5" />
 
   <default>
-    <geom condim="3" friction="0.2" />
+    <geom condim="3" friction="0.2" contype="1" conaffinity="2" />
   </default>
 
   <worldbody>
@@ -43,7 +43,7 @@ _XML = """
       <joint name="object_translate_y" type="slide" axis="0 1 0" damping="1" range="-0.5 0.5" />
       <joint name="object_rotate" type="hinge" damping="0.025" />
 
-      <geom type="sphere" size="0.08" rgba="0 0 1 1" />
+      <geom type="sphere" size="0.08" rgba="0 0 1 1" contype="2" conaffinity="1" />
       <geom name="angle_indicator" type="sphere" size="0.012" pos="0.05 0 0.05" rgba="0 0 0 1"
             contype="0" conaffinity="0" />
     </body>

@@ -1,0 +1,10 @@
+{
+  "touching_approaching_impulses": {
+    "0.0": 6.000000000000001,
+    "2e-05": 12.000000000000002,
+    "2e-11": 12.000000000000002,
+    "2e-17": 12.000000000000002
+  },
+  "zero_smoothing_separated_derivative_k": "nan",
+  "zero_smoothing_separated_fd_k": 0.0
+}

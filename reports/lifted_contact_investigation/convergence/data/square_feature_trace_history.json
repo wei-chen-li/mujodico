@@ -1,0 +1,905 @@
+[
+  {
+    "alg_mod": 0,
+    "iter": 0,
+    "objective": 4847.820163269428,
+    "inf_pr": 2.572982363109773e-05,
+    "inf_du": 3959.0908110733453,
+    "mu": 0.00282843,
+    "d_norm": 0.0,
+    "regularization_size": 0.0,
+    "alpha_du": 0.0,
+    "alpha_pr": 0.0,
+    "ls_trials": 0,
+    "unscaled_violations": {
+      "x_L_violation": 6.868565254137439e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.003494215735929168,
+      "compl_x_U": 0.003488349558787326,
+      "grad_lag_x": 3959.0908110733453,
+      "g_violation": 2.572982363109773e-05,
+      "compl_g": 0.0007004436654077254
+    },
+    "scaled_violations": {
+      "x_L_violation": 6.868565254137439e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.003494215735929168,
+      "compl_x_U": 0.003488349558787326,
+      "grad_lag_x": 3959.0908110733453,
+      "g_violation": 2.572982363109773e-05,
+      "compl_g": 0.0007004436654077254
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07998408991290885,
+        0.10053043038982362
+      ],
+      "projection_margins": [
+        -1.5910087091147718e-05,
+        0.02053043038982362
+      ],
+      "pusher_y_stationarity": -326.6476118295691
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 1,
+    "objective": 4847.756937345897,
+    "inf_pr": 0.0022909044079301374,
+    "inf_du": 417.2476087196592,
+    "mu": 0.00282843,
+    "d_norm": 0.057751162435107334,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 3.80003444932341e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.005617289097283076,
+      "compl_x_U": 0.002843946220617527,
+      "grad_lag_x": 417.2476087196592,
+      "g_violation": 0.0022909044079301374,
+      "compl_g": 0.04823830267213882
+    },
+    "scaled_violations": {
+      "x_L_violation": 3.80003444932341e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.005617289097283076,
+      "compl_x_U": 0.002843946220617527,
+      "grad_lag_x": 417.2476087196592,
+      "g_violation": 0.0022909044079301374,
+      "compl_g": 0.04823830267213882
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07974751608843972,
+        0.10051854434286903
+      ],
+      "projection_margins": [
+        -0.0002524839115602834,
+        0.020518544342869025
+      ],
+      "pusher_y_stationarity": 417.2476087196592
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 2,
+    "objective": 4847.738920137861,
+    "inf_pr": 0.006601201922293881,
+    "inf_du": 415.27963388882426,
+    "mu": 0.00282843,
+    "d_norm": 0.07393399033050574,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 9.782507178924863e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284300000000003,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 415.27963388882426,
+      "g_violation": 0.006601201922293881,
+      "compl_g": 0.03376650915210643
+    },
+    "scaled_violations": {
+      "x_L_violation": 9.782507178924863e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284300000000003,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 415.27963388882426,
+      "g_violation": 0.006601201922293881,
+      "compl_g": 0.03376650915210643
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08003893786455261,
+        0.1005353774704938
+      ],
+      "projection_margins": [
+        3.893786455261283e-05,
+        0.020535377470493804
+      ],
+      "pusher_y_stationarity": -415.27963388882426
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 3,
+    "objective": 4847.726421666065,
+    "inf_pr": 0.0020543594847906785,
+    "inf_du": 439.93584749904767,
+    "mu": 0.00282843,
+    "d_norm": 0.08125865029867735,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.9028992424584521,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 2.5826552446620433e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002835462225478184,
+      "compl_x_U": 0.0028354986749721165,
+      "grad_lag_x": 439.93584749904767,
+      "g_violation": 0.0020543594847906785,
+      "compl_g": 0.04272520025498535
+    },
+    "scaled_violations": {
+      "x_L_violation": 2.5826552446620433e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002835462225478184,
+      "compl_x_U": 0.0028354986749721165,
+      "grad_lag_x": 439.93584749904767,
+      "g_violation": 0.0020543594847906785,
+      "compl_g": 0.04272520025498535
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07977388878234475,
+        0.10052092460914017
+      ],
+      "projection_margins": [
+        -0.000226111217655256,
+        0.020520924609140165
+      ],
+      "pusher_y_stationarity": 376.96905050845385
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 4,
+    "objective": 4847.760934740983,
+    "inf_pr": 0.0008922665804725199,
+    "inf_du": 415.0358538013476,
+    "mu": 0.00282843,
+    "d_norm": 0.05017835258944609,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 8.896993132839964e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828430275604344,
+      "compl_x_U": 0.0028284301002468736,
+      "grad_lag_x": 415.0358538013476,
+      "g_violation": 0.0008922665804725199,
+      "compl_g": 0.01900086232261948
+    },
+    "scaled_violations": {
+      "x_L_violation": 8.896993132839964e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828430275604344,
+      "compl_x_U": 0.0028284301002468736,
+      "grad_lag_x": 415.0358538013476,
+      "g_violation": 0.0008922665804725199,
+      "compl_g": 0.01900086232261948
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.080030796159249,
+        0.10053477643675603
+      ],
+      "projection_margins": [
+        3.0796159249002475e-05,
+        0.020534776436756025
+      ],
+      "pusher_y_stationarity": -415.0358538013476
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 5,
+    "objective": 4847.7343913990735,
+    "inf_pr": 0.002220697515506232,
+    "inf_du": 417.5427273812781,
+    "mu": 0.00282843,
+    "d_norm": 0.05429755194722859,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 7.685087392513577e-37,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.5427273812781,
+      "g_violation": 0.002220697515506232,
+      "compl_g": 0.046060923805519044
+    },
+    "scaled_violations": {
+      "x_L_violation": 7.685087392513577e-37,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.5427273812781,
+      "g_violation": 0.002220697515506232,
+      "compl_g": 0.046060923805519044
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07975122201529244,
+        0.10051931010664623
+      ],
+      "projection_margins": [
+        -0.0002487779847075572,
+        0.020519310106646232
+      ],
+      "pusher_y_stationarity": 417.5427273812781
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 6,
+    "objective": 4847.842004631498,
+    "inf_pr": 0.00032423758778988773,
+    "inf_du": 417.31473879459435,
+    "mu": 0.00282843,
+    "d_norm": 0.07789346187247656,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 1.6301744041378264e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284300000000003,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 417.31473879459435,
+      "g_violation": 0.00032423758778988773,
+      "compl_g": 0.0026709696173261815
+    },
+    "scaled_violations": {
+      "x_L_violation": 1.6301744041378264e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284300000000003,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 417.31473879459435,
+      "g_violation": 0.00032423758778988773,
+      "compl_g": 0.0026709696173261815
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.0800519793749518,
+        0.1005337408511338
+      ],
+      "projection_margins": [
+        5.1979374951799384e-05,
+        0.020533740851133797
+      ],
+      "pusher_y_stationarity": -417.31473879459435
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 7,
+    "objective": 4847.842174564582,
+    "inf_pr": 0.00018570956745143918,
+    "inf_du": 639.7511467918157,
+    "mu": 0.00282843,
+    "d_norm": 0.08524194615553266,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.8837205802129994,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 2.93934976558508e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002838621055921987,
+      "compl_x_U": 0.002838009718559693,
+      "grad_lag_x": 639.7511467918157,
+      "g_violation": 0.00018570956745143918,
+      "compl_g": 0.003703276814216569
+    },
+    "scaled_violations": {
+      "x_L_violation": 2.93934976558508e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002838621055921987,
+      "compl_x_U": 0.002838009718559693,
+      "grad_lag_x": 639.7511467918157,
+      "g_violation": 0.00018570956745143918,
+      "compl_g": 0.003703276814216569
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07978786063740625,
+        0.10051988615587651
+      ],
+      "projection_margins": [
+        -0.00021213936259374677,
+        0.020519886155876507
+      ],
+      "pusher_y_stationarity": 370.6717569063765
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 8,
+    "objective": 4847.76291558799,
+    "inf_pr": 0.0008926335745422908,
+    "inf_du": 415.13002079807757,
+    "mu": 0.00282843,
+    "d_norm": 0.04708379933542882,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 5.93321978607998e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284476650659715,
+      "compl_x_U": 0.002828430476139531,
+      "grad_lag_x": 415.13002079807757,
+      "g_violation": 0.0008926335745422908,
+      "compl_g": 0.018918776687466533
+    },
+    "scaled_violations": {
+      "x_L_violation": 5.93321978607998e-39,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284476650659715,
+      "compl_x_U": 0.002828430476139531,
+      "grad_lag_x": 415.13002079807757,
+      "g_violation": 0.0008926335745422908,
+      "compl_g": 0.018918776687466533
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08003054485714944,
+        0.10053458947755103
+      ],
+      "projection_margins": [
+        3.0544857149442106e-05,
+        0.020534589477551032
+      ],
+      "pusher_y_stationarity": -415.13002079807757
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 9,
+    "objective": 4847.876234262361,
+    "inf_pr": 0.0002259979811936562,
+    "inf_du": 419.8786130977762,
+    "mu": 0.00282843,
+    "d_norm": 0.054813652504517356,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 7.258440780435719e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 419.8786130977762,
+      "g_violation": 0.0002259979811936562,
+      "compl_g": 0.0021476180426596267
+    },
+    "scaled_violations": {
+      "x_L_violation": 7.258440780435719e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 419.8786130977762,
+      "g_violation": 0.0002259979811936562,
+      "compl_g": 0.0021476180426596267
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.079759437580221,
+        0.10051766098262085
+      ],
+      "projection_margins": [
+        -0.00024056241977900295,
+        0.020517660982620853
+      ],
+      "pusher_y_stationarity": 419.8786130977762
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 10,
+    "objective": 4847.842128281508,
+    "inf_pr": 0.00031854817546374953,
+    "inf_du": 417.34357262604783,
+    "mu": 0.00282843,
+    "d_norm": 0.07544371534472594,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 6.2648673293425166e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002829820470862436,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 417.34357262604783,
+      "g_violation": 0.00031854817546374953,
+      "compl_g": 0.002605180920015378
+    },
+    "scaled_violations": {
+      "x_L_violation": 6.2648673293425166e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002829820470862436,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 417.34357262604783,
+      "g_violation": 0.00031854817546374953,
+      "compl_g": 0.002605180920015378
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.0800513427744065,
+        0.10053368958787895
+      ],
+      "projection_margins": [
+        5.134277440649315e-05,
+        0.020533689587878948
+      ],
+      "pusher_y_stationarity": -417.34357262604783
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 11,
+    "objective": 4847.843867199277,
+    "inf_pr": 0.00017330416918897099,
+    "inf_du": 525.2456784293972,
+    "mu": 0.00282843,
+    "d_norm": 0.08541384724947537,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.8908381240118467,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 6.820881315348916e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028373037515232883,
+      "compl_x_U": 0.0028369761207265682,
+      "grad_lag_x": 525.2456784293972,
+      "g_violation": 0.00017330416918897099,
+      "compl_g": 0.003437914844253527
+    },
+    "scaled_violations": {
+      "x_L_violation": 6.820881315348916e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028373037515232883,
+      "compl_x_U": 0.0028369761207265682,
+      "grad_lag_x": 525.2456784293972,
+      "g_violation": 0.00017330416918897099,
+      "compl_g": 0.003437914844253527
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07978589067667442,
+        0.10051975492286133
+      ],
+      "projection_margins": [
+        -0.00021410932332557864,
+        0.02051975492286133
+      ],
+      "pusher_y_stationarity": 373.6757797576115
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 12,
+    "objective": 4847.76214780142,
+    "inf_pr": 0.0008916375225546339,
+    "inf_du": 415.1154300621612,
+    "mu": 0.00282843,
+    "d_norm": 0.046912589780630044,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 1.2178398037586415e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828431189823408,
+      "compl_x_U": 0.002828430128092933,
+      "grad_lag_x": 415.1154300621612,
+      "g_violation": 0.0008916375225546339,
+      "compl_g": 0.0189044600993678
+    },
+    "scaled_violations": {
+      "x_L_violation": 1.2178398037586415e-38,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828431189823408,
+      "compl_x_U": 0.002828430128092933,
+      "grad_lag_x": 415.1154300621612,
+      "g_violation": 0.0008916375225546339,
+      "compl_g": 0.0189044600993678
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08003049744484449,
+        0.10053460987689763
+      ],
+      "projection_margins": [
+        3.0497444844485022e-05,
+        0.020534609876897633
+      ],
+      "pusher_y_stationarity": -415.1154300621612
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 13,
+    "objective": 4847.876228367581,
+    "inf_pr": 0.00022586822980934923,
+    "inf_du": 419.8788346467917,
+    "mu": 0.00282843,
+    "d_norm": 0.0547123133454912,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 1.7055352611302493e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 419.8788346467917,
+      "g_violation": 0.00022586822980934923,
+      "compl_g": 0.0021473848464294023
+    },
+    "scaled_violations": {
+      "x_L_violation": 1.7055352611302493e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.00282843,
+      "grad_lag_x": 419.8788346467917,
+      "g_violation": 0.00022586822980934923,
+      "compl_g": 0.0021473848464294023
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.079759444290999,
+        0.10051766085174332
+      ],
+      "projection_margins": [
+        -0.0002405557090010002,
+        0.020517660851743322
+      ],
+      "pusher_y_stationarity": 419.8788346467917
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 14,
+    "objective": 4847.842127216592,
+    "inf_pr": 0.00031850290758528993,
+    "inf_du": 417.34380345316566,
+    "mu": 0.00282843,
+    "d_norm": 0.07543479518067647,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 9.073050970949978e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028297441052404794,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.34380345316566,
+      "g_violation": 0.00031850290758528993,
+      "compl_g": 0.002605119199670252
+    },
+    "scaled_violations": {
+      "x_L_violation": 9.073050970949978e-28,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028297441052404794,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.34380345316566,
+      "g_violation": 0.00031850290758528993,
+      "compl_g": 0.002605119199670252
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08005134534372813,
+        0.10053368949515736
+      ],
+      "projection_margins": [
+        5.1345343728123605e-05,
+        0.020533689495157353
+      ],
+      "pusher_y_stationarity": -417.34380345316566
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 15,
+    "objective": 4847.843785407982,
+    "inf_pr": 0.0001739681641874588,
+    "inf_du": 527.3567126933995,
+    "mu": 0.00282843,
+    "d_norm": 0.08541077466283865,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.8904490815896727,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 9.258555789832688e-30,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002837376005061031,
+      "compl_x_U": 0.002837027932425612,
+      "grad_lag_x": 527.3567126933995,
+      "g_violation": 0.0001739681641874588,
+      "compl_g": 0.0034521843425829634
+    },
+    "scaled_violations": {
+      "x_L_violation": 9.258555789832688e-30,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002837376005061031,
+      "compl_x_U": 0.002837027932425612,
+      "grad_lag_x": 527.3567126933995,
+      "g_violation": 0.0001739681641874588,
+      "compl_g": 0.0034521843425829634
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07978599818096174,
+        0.10051976203017476
+      ],
+      "projection_margins": [
+        -0.0002140018190382592,
+        0.020519762030174762
+      ],
+      "pusher_y_stationarity": 373.511313026172
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 16,
+    "objective": 4847.762187272799,
+    "inf_pr": 0.0008917110059407391,
+    "inf_du": 415.1163173492832,
+    "mu": 0.00282843,
+    "d_norm": 0.04688795337337425,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 1.2253002200931128e-36,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828431200772231,
+      "compl_x_U": 0.0028284301284162753,
+      "grad_lag_x": 415.1163173492832,
+      "g_violation": 0.0008917110059407391,
+      "compl_g": 0.01890564441378014
+    },
+    "scaled_violations": {
+      "x_L_violation": 1.2253002200931128e-36,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002828431200772231,
+      "compl_x_U": 0.0028284301284162753,
+      "grad_lag_x": 415.1163173492832,
+      "g_violation": 0.0008917110059407391,
+      "compl_g": 0.01890564441378014
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.0800305017405007,
+        0.10053460884671815
+      ],
+      "projection_margins": [
+        3.0501740500704644e-05,
+        0.02053460884671815
+      ],
+      "pusher_y_stationarity": -415.1163173492832
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 17,
+    "objective": 4847.876228387304,
+    "inf_pr": 0.00022587276584135063,
+    "inf_du": 419.87882900285234,
+    "mu": 0.00282843,
+    "d_norm": 0.05471227694628838,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 6.55589907499447e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 419.87882900285234,
+      "g_violation": 0.00022587276584135063,
+      "compl_g": 0.002147415762747504
+    },
+    "scaled_violations": {
+      "x_L_violation": 6.55589907499447e-27,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.00282843,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 419.87882900285234,
+      "g_violation": 0.00022587276584135063,
+      "compl_g": 0.002147415762747504
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07975944413764287,
+        0.100517660871522
+      ],
+      "projection_margins": [
+        -0.00024055586235713355,
+        0.020517660871522
+      ],
+      "pusher_y_stationarity": 419.87882900285234
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 18,
+    "objective": 4847.842127077904,
+    "inf_pr": 0.0003185035261360804,
+    "inf_du": 417.3437891333602,
+    "mu": 0.00282843,
+    "d_norm": 0.07543442803230595,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 2.2973443591553964e-29,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002829745975338547,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.3437891333602,
+      "g_violation": 0.0003185035261360804,
+      "compl_g": 0.0026051185969723166
+    },
+    "scaled_violations": {
+      "x_L_violation": 2.2973443591553964e-29,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.002829745975338547,
+      "compl_x_U": 0.0028284300000000003,
+      "grad_lag_x": 417.3437891333602,
+      "g_violation": 0.0003185035261360804,
+      "compl_g": 0.0026051185969723166
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08005134518536845,
+        0.10053368950015716
+      ],
+      "projection_margins": [
+        5.134518536845101e-05,
+        0.02053368950015716
+      ],
+      "pusher_y_stationarity": -417.3437891333602
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 19,
+    "objective": 4847.843790193808,
+    "inf_pr": 0.00017392853375421818,
+    "inf_du": 527.2413281644513,
+    "mu": 0.00282843,
+    "d_norm": 0.08541058426343116,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 0.8904723152584617,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 6.125216659136873e-29,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028373716905581788,
+      "compl_x_U": 0.002837024838668767,
+      "grad_lag_x": 527.2413281644513,
+      "g_violation": 0.00017392853375421818,
+      "compl_g": 0.0034513326259552513
+    },
+    "scaled_violations": {
+      "x_L_violation": 6.125216659136873e-29,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028373716905581788,
+      "compl_x_U": 0.002837024838668767,
+      "grad_lag_x": 527.2413281644513,
+      "g_violation": 0.00017392853375421818,
+      "compl_g": 0.0034513326259552513
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.07978599174567286,
+        0.10051976160473537
+      ],
+      "projection_margins": [
+        -0.00021400825432714432,
+        0.02051976160473537
+      ],
+      "pusher_y_stationarity": 373.52113529989555
+    }
+  },
+  {
+    "alg_mod": 0,
+    "iter": 20,
+    "objective": 4847.762184924961,
+    "inf_pr": 0.0008917065181331708,
+    "inf_du": 415.11626390012714,
+    "mu": 0.00282843,
+    "d_norm": 0.04688992064413449,
+    "regularization_size": 0.0,
+    "alpha_du": 1.0,
+    "alpha_pr": 1.0,
+    "ls_trials": 1,
+    "unscaled_violations": {
+      "x_L_violation": 7.754086173380147e-37,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284312001104063,
+      "compl_x_U": 0.0028284301283997395,
+      "grad_lag_x": 415.11626390012714,
+      "g_violation": 0.0008917065181331708,
+      "compl_g": 0.018905571599984912
+    },
+    "scaled_violations": {
+      "x_L_violation": 7.754086173380147e-37,
+      "x_U_violation": 0.0,
+      "compl_x_L": 0.0028284312001104063,
+      "compl_x_U": 0.0028284301283997395,
+      "grad_lag_x": 415.11626390012714,
+      "g_violation": 0.0008917065181331708,
+      "compl_g": 0.018905571599984912
+    },
+    "trace": {
+      "stage": 107,
+      "box_local_pusher": [
+        -0.08003050147517056,
+        0.10053460890800035
+      ],
+      "projection_margins": [
+        3.05014751705579e-05,
+        0.02053460890800035
+      ],
+      "pusher_y_stationarity": -415.11626390012714
+    }
+  }
+]
