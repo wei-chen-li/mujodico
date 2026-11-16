@@ -1,0 +1,74 @@
+{
+  "symmetric": {
+    "position_error": 0.300036977016255,
+    "angle_span_degrees": 0.0,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": 0,
+    "net_angle": 0.0,
+    "first_90deg_iteration": null
+  },
+  "sphere": {
+    "position_error": 0.0032123198568880258,
+    "angle_span_degrees": 204.04026116188436,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": -1,
+    "net_angle": 203.97872373641545,
+    "first_90deg_iteration": 77
+  },
+  "sphere_no_geometry": {
+    "position_error": 0.34277305231208477,
+    "angle_span_degrees": 2.77621076480906e-06,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": 0,
+    "net_angle": -2.77621076480906e-06,
+    "first_90deg_iteration": null
+  },
+  "offset_plus": {
+    "position_error": 0.0022257399280037355,
+    "angle_span_degrees": 204.882736753775,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": -1,
+    "net_angle": -204.64108528732336,
+    "first_90deg_iteration": 22
+  },
+  "offset_minus": {
+    "position_error": 0.0022273292410674578,
+    "angle_span_degrees": 205.03464862607137,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": -1,
+    "net_angle": 204.8095184177274,
+    "first_90deg_iteration": 22
+  },
+  "box_no_geometry": {
+    "position_error": 0.25004780436826457,
+    "angle_span_degrees": 0.073993694509211,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": 0,
+    "net_angle": -0.073993694509211,
+    "first_90deg_iteration": null
+  },
+  "box_no_arm": {
+    "position_error": 0.25004780436908663,
+    "angle_span_degrees": 0.0739936842471895,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": 0,
+    "net_angle": -0.0739936842471895,
+    "first_90deg_iteration": null
+  },
+  "box_no_normal": {
+    "position_error": 0.06017654665896381,
+    "angle_span_degrees": 197.92062090842262,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": -1,
+    "net_angle": -195.56559527049473,
+    "first_90deg_iteration": 19
+  },
+  "box": {
+    "position_error": 0.01565955732320136,
+    "angle_span_degrees": 278.10915901430917,
+    "max_primal_value_change_from_ablation": 0.0,
+    "status": -1,
+    "net_angle": 276.70801401536954,
+    "first_90deg_iteration": 8
+  }
+}

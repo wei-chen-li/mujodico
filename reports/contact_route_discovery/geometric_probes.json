@@ -1,0 +1,41 @@
+{
+  "PushSphere2d": {
+    "gap": 0.38231715287178925,
+    "normal": [
+      0.7633718761985484,
+      0.6459592701007612
+    ],
+    "tangent": [
+      -0.6459592701007612,
+      0.7633718761985484
+    ],
+    "lateral_gap_derivative": 0.0,
+    "lateral_generalized_force_derivative_per_newton": [
+      -1.2608581744332434,
+      1.4900377079304765,
+      1.2608581744332434,
+      -1.4900377079304765
+    ],
+    "finite_difference_max_error": 1.02846620109176e-11
+  },
+  "PushBox2d": {
+    "gap": 0.30433278552837295,
+    "normal": [
+      0.7944205518740363,
+      0.6073680817759126
+    ],
+    "tangent": [
+      -0.6073680817759126,
+      0.7944205518740363
+    ],
+    "lateral_gap_derivative": 1.831796930624995e-17,
+    "lateral_generalized_force_derivative_per_newton": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.0
+    ],
+    "finite_difference_max_error": 5.071498776487715e-12
+  }
+}
