@@ -1,0 +1,129 @@
+{
+  "quadrant": {
+    "start_replay_node": 78,
+    "start_configuration": [
+      -0.020905375463138722,
+      -0.09799392636133573,
+      0.893749401656871
+    ],
+    "start_gap": [
+      0.00019902358289573124
+    ],
+    "sticking_velocity_jacobian_singular_values": [
+      1.0032028368127894,
+      1.0
+    ],
+    "end_full_contact_constraint_singular_values": [
+      1.0032028368127894,
+      1.0
+    ],
+    "end_nullspace_knob_component": 0.9968073886005296,
+    "start_relative_contact_velocities": [
+      0.000684334787651078,
+      0.004039737748387797
+    ],
+    "additional_rotation_before_limit_degrees": 15.064442919184513,
+    "end_configuration": [
+      1.9705374484924043e-17,
+      -0.10019902358289572,
+      1.1566735305753868
+    ],
+    "integrator_status": 1,
+    "termination": "joint/workspace bound",
+    "end_joint_contact_singular_value": 1.0,
+    "maximum_gap_drift_m": 3.122502256758253e-17,
+    "unit_knob_speed_joint_velocities": [
+      0.07833674799811102,
+      -0.016711843175088274
+    ]
+  },
+  "finger": {
+    "start_replay_node": 24,
+    "start_configuration": [
+      0.015964088596874034,
+      -0.35712863355684166,
+      0.028463029501401366
+    ],
+    "start_gap": [
+      0.0001464856629386363
+    ],
+    "sticking_velocity_jacobian_singular_values": [
+      0.32057655950909186,
+      0.02645480648203916
+    ],
+    "end_full_contact_constraint_singular_values": [
+      0.18054704989050738,
+      0.050289091102785635
+    ],
+    "end_nullspace_knob_component": 0.890882213118291,
+    "start_relative_contact_velocities": [
+      -0.009281961377716653,
+      0.0031158208289254747
+    ],
+    "additional_rotation_before_limit_degrees": 76.89932146836011,
+    "end_configuration": [
+      0.5531023090465792,
+      -1.5707963267948966,
+      1.3706093816738458
+    ],
+    "integrator_status": 1,
+    "termination": "joint/workspace bound",
+    "end_joint_contact_singular_value": 0.044842176285458654,
+    "maximum_gap_drift_m": 1.2626208786836735e-08,
+    "unit_knob_speed_joint_velocities": [
+      0.9820584966186903,
+      -1.9322797299143313
+    ]
+  },
+  "two": {
+    "start_replay_node": 127,
+    "start_configuration": [
+      -0.29441157280462615,
+      0.3289766465907791,
+      0.1512204139641096,
+      0.005445237019355033,
+      4.361799224988722
+    ],
+    "start_gap": [
+      8.87426318815221e-05,
+      -2.665756622255433e-05
+    ],
+    "sticking_velocity_jacobian_singular_values": [
+      0.29615386019471873,
+      0.2665653075324903,
+      0.0340234312345906,
+      0.003321547344874507
+    ],
+    "end_full_contact_constraint_singular_values": [
+      0.2716178930634659,
+      0.24212549737633904,
+      0.03387602513222907,
+      0.003311529236366438
+    ],
+    "end_nullspace_knob_component": 0.0004182566727295911,
+    "start_relative_contact_velocities": [
+      -0.005949906532240007,
+      0.002040770531223966,
+      0.0003121587765998069,
+      9.719105037461897e-05
+    ],
+    "additional_rotation_before_limit_degrees": 1.701777544702125,
+    "end_configuration": [
+      -0.395047952007027,
+      0.5679508914042298,
+      0.27317314190294645,
+      -0.27735936441726383,
+      4.391500846280279
+    ],
+    "integrator_status": 1,
+    "termination": "joint-to-contact kinematic singularity",
+    "end_joint_contact_singular_value": 1.000000000003582e-05,
+    "maximum_gap_drift_m": 6.376775663063938e-07,
+    "unit_knob_speed_joint_velocities": [
+      -11.535914583233163,
+      27.47900043144573,
+      2.094375462432784,
+      -4.704736028411027
+    ]
+  }
+}

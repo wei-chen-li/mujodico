@@ -1,0 +1,178 @@
+{
+  "knob_only_smooth": [
+    {
+      "control_scale": 1.0,
+      "angle_degrees": 361.958684263512,
+      "state_bound_violation": 0.001965998119737522,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.99,
+      "angle_degrees": 338.7454809023583,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.97,
+      "angle_degrees": 314.727973397182,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.95,
+      "angle_degrees": 297.62696878398685,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.9,
+      "angle_degrees": 265.06668564802305,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.8,
+      "angle_degrees": 217.44921517155646,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.7,
+      "angle_degrees": 179.5137432841243,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    }
+  ],
+  "knob_only_zero": [
+    {
+      "control_scale": 1.0,
+      "angle_degrees": 358.0415663337249,
+      "state_bound_violation": 0.022954148054455503,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.99,
+      "angle_degrees": 332.8782530271994,
+      "state_bound_violation": 0.010685699785433211,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.97,
+      "angle_degrees": 345.58093038618375,
+      "state_bound_violation": 0.0073797254871270646,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.95,
+      "angle_degrees": 307.953993492569,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.9,
+      "angle_degrees": 264.94881590998284,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.8,
+      "angle_degrees": 214.0136384193482,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.7,
+      "angle_degrees": 176.03412099146877,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    }
+  ],
+  "collisions_smooth": [
+    {
+      "control_scale": 1.0,
+      "angle_degrees": 361.4623847867016,
+      "state_bound_violation": 0.001599564774216189,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.99,
+      "angle_degrees": 338.5678593830042,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.97,
+      "angle_degrees": 314.63578693636066,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.95,
+      "angle_degrees": 297.5572325287117,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.9,
+      "angle_degrees": 265.01814426907663,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.8,
+      "angle_degrees": 217.40926855042756,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.7,
+      "angle_degrees": 179.4726538190792,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    }
+  ],
+  "collisions_zero": [
+    {
+      "control_scale": 1.0,
+      "angle_degrees": 358.0415663337252,
+      "state_bound_violation": 0.02295414805445284,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.99,
+      "angle_degrees": 332.87825302719915,
+      "state_bound_violation": 0.010685699785433433,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.97,
+      "angle_degrees": 345.5809303861837,
+      "state_bound_violation": 0.007379725487127509,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.95,
+      "angle_degrees": 307.9539934925716,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.9,
+      "angle_degrees": 264.9488159099833,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.8,
+      "angle_degrees": 214.01363841934824,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    },
+    {
+      "control_scale": 0.7,
+      "angle_degrees": 176.03412099146882,
+      "state_bound_violation": 0.0,
+      "control_bound_violation": 0.0
+    }
+  ]
+}

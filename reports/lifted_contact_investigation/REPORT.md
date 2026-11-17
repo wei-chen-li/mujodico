@@ -1,5 +1,7 @@
 **Why interior-point trajectory optimization discovers pushing motions with lifted contact forces**
 
+The [finger-knob constraint-qualification follow-up](../knob_constraint_qualification/REPORT.md) investigates the effect of joint limits and an added finger. It reproduces a position-only copied-finger failure, separates a genuine zero-force LICQ/MFCQ defect from equality-rank and contact-mode issues, and recovers large-rotation discovery by changing only the initial barrier parameter.
+
 Investigation of MuJoDiCo revision `75fe4194370516bd0e1ebebabb10ff2d69a92155`, 15 November 2026. The experiment programs, individual results, scalar iteration histories, sampled primal iterates, replay trajectories, and figure sources accompany this report. Library and task implementations were left unchanged.
 
 The evidence includes 46 saved solver runs across the original pushing tasks and the two native frictional knob tasks, plus derivative, constitutive-law, cone-consistency, and replay probes. One further configuration, frictionless elliptic contact, is rejected during model-data allocation and is recorded as an unsupported case.

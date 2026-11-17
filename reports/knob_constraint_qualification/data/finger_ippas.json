@@ -1,0 +1,59 @@
+{
+  "args": {
+    "label": "finger_ippas",
+    "task": "finger",
+    "tip_only": false,
+    "friction": null,
+    "goal_degrees": 360.0,
+    "force_floor": 0.0,
+    "smoothing": 1e-05,
+    "form": "lifted",
+    "solver": "ippas",
+    "hessian": "gn",
+    "inner_tolerance": null,
+    "iterations": 500,
+    "init": null,
+    "max_wall_time": 300.0
+  },
+  "info": {
+    "complementarity": 1.2535327121576727,
+    "dual_error": 218156.57305014972,
+    "error": 623.5953448644523,
+    "iter_count": 500,
+    "mu": 0.1,
+    "obj_val": 3510.949671844178,
+    "primal_error": 0.8179312745296483,
+    "status": 3,
+    "success": false
+  },
+  "objective": 3510.949671844178,
+  "angle_degrees": 356.0642853481146,
+  "violation": 0.8179312745296483,
+  "nx": 6,
+  "nw": 10,
+  "nu": 2,
+  "N": 400,
+  "contact_pairs": [
+    [
+      2,
+      0
+    ],
+    [
+      2,
+      1
+    ]
+  ],
+  "replay": {
+    "smooth": {
+      "angle_degrees": 355.7196779151503,
+      "max_state_difference": 0.07966678028681273,
+      "bound_violation": 0.001968142965057762
+    },
+    "zero": {
+      "angle_degrees": 336.1329460258898,
+      "max_state_difference": 0.6858932529544,
+      "bound_violation": 0.021177838200788557
+    }
+  },
+  "history": []
+}

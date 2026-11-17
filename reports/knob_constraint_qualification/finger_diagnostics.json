@@ -1,0 +1,60 @@
+{
+  "label": "finger",
+  "original_solver_violation": 0.3601327782756309,
+  "force_equalities": 3200,
+  "dynamics_equalities": 2406,
+  "control_degrees_of_freedom": 800,
+  "equality_full_row_rank_by_triangular_identity_blocks": true,
+  "actual_force_zeros": 11,
+  "actual_force_zeros_with_zero_gradient": 11,
+  "minimum_positive_force": 4.426039719517986e-06,
+  "near_bound_force_decisions_1e-8": 11,
+  "initial_distal_contact_kinematic_singular_values": [
+    0.29315931456338307,
+    0.039876976310173055
+  ],
+  "minimum_distal_contact_kinematic_singular_value": 0.026089939188421337,
+  "initial_duplicate_pyramid_row_pairs": [
+    [
+      0,
+      0,
+      1
+    ],
+    [
+      1,
+      0,
+      1
+    ]
+  ],
+  "max_given_contact_force_vs_full_step_difference": 0.0003799104154177781,
+  "max_noncontact_constraint_force": 0.0,
+  "nodes_with_noncontact_force_over_1e-6": 0,
+  "state_bounds_within_1e-6": 0,
+  "feasible_trajectory_probes": {
+    "cold": {
+      "force_zero_count": 0,
+      "force_zero_with_zero_gradient": 0,
+      "minimum_force": 0.00013729767848624802,
+      "state_bound_violation": 0.0,
+      "dynamics_defect": 1.6263032587282567e-19,
+      "force_equality_defect": 3.6253010142484055e-19,
+      "minimum_finite_state_bound_slack": 0.5235987755982989,
+      "angle_degrees": -3.5818844038743596e-05
+    },
+    "retreat": {
+      "force_zero_count": 92,
+      "force_zero_with_zero_gradient": 92,
+      "minimum_force": -0.0,
+      "state_bound_violation": 0.0,
+      "dynamics_defect": 5.551115123125783e-17,
+      "force_equality_defect": 7.962109704190423e-20,
+      "minimum_finite_state_bound_slack": 0.5165969846275593,
+      "angle_degrees": -0.001259949663934742
+    }
+  },
+  "proximal_minimum_possible_gap_m": 0.031547594742265,
+  "contact_gap_minimums": [
+    0.06822011347369948,
+    -3.1815959842154684e-05
+  ]
+}

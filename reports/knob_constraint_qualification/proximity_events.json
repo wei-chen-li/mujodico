@@ -1,0 +1,73 @@
+{
+  "quadrant": [
+    {
+      "release": 1.8,
+      "recontact": 3.38,
+      "maximum_gap_mm": 11.236674425787005
+    },
+    {
+      "release": 4.0600000000000005,
+      "recontact": 5.1000000000000005,
+      "maximum_gap_mm": 10.300635079122141
+    },
+    {
+      "release": 5.62,
+      "recontact": 6.34,
+      "maximum_gap_mm": 9.09528029341812
+    }
+  ],
+  "finger": [
+    {
+      "release": 1.4000000000000001,
+      "recontact": 1.6400000000000001,
+      "maximum_gap_mm": 11.816266606502868
+    },
+    {
+      "release": 1.82,
+      "recontact": 1.98,
+      "maximum_gap_mm": 8.804902380945348
+    },
+    {
+      "release": 2.04,
+      "recontact": 2.24,
+      "maximum_gap_mm": 6.1680543117720035
+    },
+    {
+      "release": 2.32,
+      "recontact": 2.54,
+      "maximum_gap_mm": 8.479083195040579
+    },
+    {
+      "release": 2.66,
+      "recontact": 3.2800000000000002,
+      "maximum_gap_mm": 5.431401444878039
+    },
+    {
+      "release": 5.0,
+      "recontact": 5.42,
+      "maximum_gap_mm": 4.366478850634293
+    }
+  ],
+  "two": [
+    {
+      "release": 0.2,
+      "recontact": 0.3,
+      "maximum_gap_mm": 5.490234394348495
+    },
+    {
+      "release": 0.56,
+      "recontact": 1.04,
+      "maximum_gap_mm": 7.39850035944302
+    },
+    {
+      "release": 1.6,
+      "recontact": 2.5,
+      "maximum_gap_mm": 6.195056176213395
+    },
+    {
+      "release": 4.38,
+      "recontact": 4.78,
+      "maximum_gap_mm": 3.7857979293731554
+    }
+  ]
+}

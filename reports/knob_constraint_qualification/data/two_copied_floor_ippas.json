@@ -1,0 +1,74 @@
+{
+  "args": {
+    "label": "two_copied_floor_ippas",
+    "task": "two",
+    "tip_only": false,
+    "friction": null,
+    "finger_collisions": false,
+    "mirror_axis": "y",
+    "same_joint_angles": true,
+    "goal_degrees": 360.0,
+    "force_floor": 0.01,
+    "smoothing": 1e-05,
+    "form": "lifted",
+    "solver": "ippas",
+    "hessian": "gn",
+    "inner_tolerance": null,
+    "iterations": 500,
+    "init": null,
+    "max_wall_time": 300.0,
+    "warm_duals": false,
+    "mu_init": 0.1,
+    "force_init": 0.0,
+    "constant_init": false
+  },
+  "info": {
+    "complementarity": 0.6230452322575624,
+    "dual_error": 10.172965198768225,
+    "error": 10.172965198768225,
+    "iter_count": 94,
+    "mu": 0.1,
+    "obj_val": 7049.176106106276,
+    "primal_error": 0.01271620745182478,
+    "status": 5,
+    "success": false
+  },
+  "objective": 7049.176106106276,
+  "angle_degrees": 291.43898903936196,
+  "violation": 0.01271620745182478,
+  "nx": 10,
+  "nw": 20,
+  "nu": 4,
+  "N": 400,
+  "contact_pairs": [
+    [
+      4,
+      0
+    ],
+    [
+      4,
+      1
+    ],
+    [
+      4,
+      2
+    ],
+    [
+      4,
+      3
+    ]
+  ],
+  "replay": {
+    "smooth": {
+      "angle_degrees": 0.0025902181306582724,
+      "max_state_difference": 5.086524719585808,
+      "bound_violation": 0.0
+    },
+    "zero": {
+      "angle_degrees": 0.4300009351696941,
+      "max_state_difference": 5.079064995315166,
+      "bound_violation": 0.0
+    }
+  },
+  "history": []
+}
