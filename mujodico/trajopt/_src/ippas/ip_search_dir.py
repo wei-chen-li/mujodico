@@ -13,8 +13,10 @@ def compute(
     mu: jax.Array,
     last_delta: jax.Array,
     options: Options,
+    *,
+    min_delta: jax.Array | float = 0.0,
 ) -> tuple[pd.IpPrimalDualSystem, jax.Array, jax.Array]:
-  """Compute a direction with primal correction and dual regularization."""
+  """Compute a direction, respecting a minimum primal shift for LS retries."""
 
   o = options
   delta_c = dual_regularization(system.Eu, mu, o)
@@ -76,7 +78,9 @@ def compute(
   margin = jp.maximum(o.delta_w0, tolerance)
   delta_w = jp.minimum(
       o.delta_w_max,
-      jp.where(mineig < -tolerance, -mineig + margin, 0.0),
+      jp.maximum(
+          min_delta, jp.where(mineig < -tolerance, -mineig + margin, 0.0)
+      ),
   )
   solved, good = attempt(delta_w)
   initial = (solved, good, delta_w)

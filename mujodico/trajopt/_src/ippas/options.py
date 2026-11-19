@@ -88,6 +88,8 @@ class Options:
   filter_reset_trigger: int = 5
   # Maximum filter resets; −1 is unlimited and zero disables resets.
   max_filter_resets: int = -1
+  # Recompute rejected directions with stronger primal shifts; zero disables.
+  max_line_search_retries: int = 8
 
   # Second-order corrections (SOC).
   # Maximum SOC trials per search; zero disables SOC.

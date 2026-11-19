@@ -194,6 +194,85 @@ class Solver:
               o,
           )
       )
+
+      def next_shift(delta):
+        first = jp.maximum(o.delta_w0, o.kappa_wmin * state.last_delta)
+        growth = jp.where(
+            state.last_delta > 0, o.kappa_wplus, o.kappa_wplusem
+        )
+        return jp.minimum(
+            o.delta_w_max, jp.where(delta == 0, first, delta * growth)
+        )
+
+      def retry_cond(carry):
+        _, good, delta, found, _, _, _, count = carry
+        following = next_shift(delta)
+        return (
+            good
+            & ~found.accepted
+            & (count < o.max_line_search_retries)
+            & jp.isfinite(following)
+            & (following > delta)
+        )
+
+      def retry_body(carry):
+        _, _, delta, _, previous_search, rejected, _, count = carry
+        # Always shift the original system: retries keep the iterate, mu,
+        # constraint linearization, and filter, without accumulating shifts.
+        direction, good, delta = ip_search_dir.compute(
+            system,
+            new_mu,
+            state.last_delta,
+            o,
+            min_delta=next_shift(delta),
+        )
+        found, search, any_rejected, tiny = (
+            ip_linesearch.find_acceptable_trial_point(
+                m,
+                state.iterate,
+                state.data,
+                direction,
+                new_mu,
+                params,
+                bounds,
+                previous_search,
+                o,
+            )
+        )
+        return (
+            direction,
+            good,
+            delta,
+            found,
+            search,
+            rejected | any_rejected,
+            tiny,
+            count + 1,
+        )
+
+      (
+          direction,
+          good,
+          delta,
+          found,
+          line_search,
+          any_filter_rejected,
+          tiny_step_taken,
+          retries,
+      ) = jax.lax.while_loop(
+          retry_cond,
+          retry_body,
+          (
+              direction,
+              good,
+              delta,
+              found,
+              line_search,
+              any_filter_rejected,
+              tiny_step_taken,
+              zero,
+          ),
+      )
       accepted = good & found.accepted
 
       line_search, rejections, resets = ip_linesearch.update_filter_rejections(
@@ -228,7 +307,7 @@ class Solver:
       if o.print_level:
         jax.debug.print(
             'IPPAS {i}: f={f:.8e} primal={p:.2e} dual={d:.2e} compl={c:.2e}'
-            ' mu={mu:.2e} alpha={a:.2e} reg={r:.2e}',
+            ' mu={mu:.2e} alpha={a:.2e} reg={r:.2e} retries={retries}',
             i=iteration,
             f=data.objective,
             p=mm.primal,
@@ -237,6 +316,7 @@ class Solver:
             mu=new_mu,
             a=found.alpha,
             r=delta,
+            retries=retries,
         )
 
       tiny = accepted & tiny_step_taken

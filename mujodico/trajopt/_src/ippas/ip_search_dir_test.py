@@ -59,6 +59,24 @@ class IpSearchDirTest(absltest.TestCase):
     self.assertGreater(float(delta), 1.0)
     self.assertGreater(float(solved.delta_c), 0.0)
 
+  def test_minimum_primal_shift(self):
+    data = _random_problem_data(19, 2, 2, 1, 1, 0, 0, 'mixed', 'pd')
+    system = pd.IpPrimalDualSystem.create(**data)
+    options = IppasOptions()
+    solved, good, delta = jax.jit(
+        lambda p, floor: ip_search_dir.compute(
+            p, jp.array(0.1), jp.array(0.0), options, min_delta=floor
+        )
+    )(system, jp.array(0.05))
+    self.assertTrue(bool(good))
+    self.assertAlmostEqual(float(delta), 0.05)
+    np.testing.assert_allclose(
+        solved.Hxx, system.Hxx + 0.05 * jp.eye(system.Hxx.shape[-1])
+    )
+    np.testing.assert_allclose(
+        solved.Huu, system.Huu + 0.05 * jp.eye(system.Huu.shape[-1])
+    )
+
   def test_negative_curvature_is_regularized(self):
     m = simple_model(
         N=1,

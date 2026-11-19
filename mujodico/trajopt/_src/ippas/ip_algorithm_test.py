@@ -262,6 +262,45 @@ class IpAlgorithmTest(absltest.TestCase):
     self.assertEqual(int(result.status), IppasStatus.LINE_SEARCH_FAILED)
     np.testing.assert_array_equal(result.us, 0.0)
 
+  def test_line_search_regularization_retry(self):
+    # The positive but tiny curvature gives a Newton step so large that
+    # ordinary backtracking reaches its cutoff before reducing the cost.
+    m = simple_model(
+        N=1,
+        stage_cost=lambda x, u, k, p: jp.sum(u**4 / 4 - u),
+        terminal_cost=lambda x, p: jp.array(0.0),
+    )
+    guess = IppasInitialGuess(
+        jp.array([[0.0], [1e-4]]), jp.array([[1e-4]])
+    )
+    options = IppasOptions(max_iter=1, max_soc=0, max_line_search_retries=0)
+    failed = jax.jit(IppasSolver(m, options).solve)(jp.zeros(2), guess)
+    self.assertEqual(int(failed.status), IppasStatus.LINE_SEARCH_FAILED)
+    np.testing.assert_array_equal(failed.us, guess.us)
+
+    recovered = jax.jit(
+        IppasSolver(m, replace(options, max_line_search_retries=1)).solve
+    )(jp.zeros(2), guess)
+    self.assertEqual(int(recovered.status), IppasStatus.MAX_ITER)
+    self.assertEqual(int(recovered.iterations), 1)
+    self.assertLess(float(recovered.objective), float(failed.objective))
+    self.assertGreater(float(recovered.us[0, 0]), 0.0)
+    self.assertLess(float(recovered.us[0, 0]), 2.0)
+
+    capped = jax.jit(
+        IppasSolver(
+            m,
+            replace(
+                options,
+                max_line_search_retries=8,
+                delta_w0=1e-12,
+                delta_w_max=1e-8,
+            ),
+        ).solve
+    )(jp.zeros(2), guess)
+    self.assertEqual(int(capped.status), IppasStatus.LINE_SEARCH_FAILED)
+    np.testing.assert_array_equal(capped.us, guess.us)
+
 
 if __name__ == '__main__':
   absltest.main()
