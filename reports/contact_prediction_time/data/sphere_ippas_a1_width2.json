@@ -1,0 +1,50 @@
+{
+  "args": {
+    "label": "sphere_ippas_a1_width2",
+    "task": "PushSphere2d",
+    "seed": 0,
+    "alpha": 1.0,
+    "width_alpha": 2.0,
+    "manual_alpha": null,
+    "iterations": 500,
+    "mu_init": 0.1,
+    "mu_target": 0.0,
+    "smoothing": 2e-05,
+    "inner_tolerance": null,
+    "hessian": "gn",
+    "init": null,
+    "solver": "ippas"
+  },
+  "info": {
+    "complementarity": 0.0003745962007329084,
+    "dual_error": 85.55938358059056,
+    "error": 85.55938358059056,
+    "iter_count": 500,
+    "mu": 0.00015042412372345582,
+    "obj_val": 6.369268683026455,
+    "primal_error": 2.396984296355573,
+    "status": 3,
+    "success": false
+  },
+  "nx": 8,
+  "nw": 3,
+  "N": 100,
+  "objective": 6.369268683026455,
+  "goal_error": 0.0023828327437829806,
+  "angle_span_degrees": 196.66693808708533,
+  "min_gap": -1.2637518120056646e-05,
+  "force_defect": 2.396984296355573,
+  "dynamics_defect": 0.000152658561048135,
+  "constraint_violation": 2.396984296355573,
+  "replay": {
+    "smooth": {
+      "position_error": 0.029810697065756116,
+      "maximum_state_difference": 0.05200516279846103
+    },
+    "zero": {
+      "position_error": 0.028057862476741805,
+      "maximum_state_difference": 0.05413903295779177
+    }
+  },
+  "history": []
+}

@@ -1,0 +1,50 @@
+{
+  "args": {
+    "label": "box_ippas_a2",
+    "task": "PushBox2d",
+    "seed": 0,
+    "alpha": 2.0,
+    "width_alpha": null,
+    "manual_alpha": null,
+    "iterations": 500,
+    "mu_init": 0.1,
+    "mu_target": 0.0,
+    "smoothing": 2e-05,
+    "inner_tolerance": null,
+    "hessian": "gn",
+    "init": null,
+    "solver": "ippas"
+  },
+  "info": {
+    "complementarity": 0.00663677751536856,
+    "dual_error": 13.687618772374199,
+    "error": 13.687618772374199,
+    "iter_count": 500,
+    "mu": 0.002828427124746191,
+    "obj_val": 16.89126791343667,
+    "primal_error": 1.5056754425777323,
+    "status": 3,
+    "success": false
+  },
+  "nx": 10,
+  "nw": 3,
+  "N": 80,
+  "objective": 16.89126791343667,
+  "goal_error": 0.016705501730724447,
+  "angle_span_degrees": 276.351527305231,
+  "min_gap": -0.006198427052413122,
+  "force_defect": 1.5056754425777323,
+  "dynamics_defect": 0.11320787355789341,
+  "constraint_violation": 1.5056754425777323,
+  "replay": {
+    "smooth": {
+      "position_error": 0.02236082080834502,
+      "maximum_state_difference": 0.22588149495861992
+    },
+    "zero": {
+      "position_error": 0.11731368931241276,
+      "maximum_state_difference": 0.8859733077046078
+    }
+  },
+  "history": []
+}
