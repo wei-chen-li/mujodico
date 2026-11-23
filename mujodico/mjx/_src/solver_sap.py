@@ -33,6 +33,7 @@ from jax import numpy as jp
 from mujodico.mjx._src import collision_driver
 from mujodico.mjx._src import constraint
 from mujodico.mjx._src import derivative
+from mujodico.mjx._src import small_la
 from mujodico.mjx._src import solver_sap_util
 from mujodico.mjx._src import support
 # pylint: disable=g-importing-member
@@ -53,6 +54,16 @@ _STICTION_TOL = 1e-3                    # Unit: m/s or rad/s
 _STIFFNESS_SCALE = 1e2                  # Scale from stiffness in mujoco to force stiffness
 _HUNT_CROSSLEY_BOUNCE_SPEED_TOL = 1e-3  # Unit: m/s
 _HUNT_CROSSLEY_DAMPING_SCALE = 1e-1     # Scale from mujoco damping to Hunt-Crossley damping
+
+
+def _lookahead_ref(m) -> float:
+  v = getattr(m.opt._impl, 'contact_lookahead_ref', None)
+  return -1.0 if v is None else float(v)
+
+
+def _far_field_margin(m) -> float:
+  v = getattr(m.opt._impl, 'contact_far_field_margin', None)
+  return -1.0 if v is None else float(v)
 
 
 class SapConstraint(PyTreeNode, ABC):
@@ -244,6 +255,9 @@ class SapHuntCrossleyNormalContactConstraint(SapConstraint):
   stiffness: jax.Array
   hunt_crossley_damping: jax.Array
   contact_smoothing: jax.Array
+  # Static (non-array field); see solver_sap_util.hunt_crossley_normal_impulse.
+  far_field_margin: float = -1.0
+  lookahead_ref: float = -1.0
 
   def __post_init__(self):
     assert self.phi0.shape == self.stiffness.shape
@@ -259,6 +273,8 @@ class SapHuntCrossleyNormalContactConstraint(SapConstraint):
       'd': self.hunt_crossley_damping,
       'contact_smoothing': self.contact_smoothing,
       'bounce_speed_tol': _HUNT_CROSSLEY_BOUNCE_SPEED_TOL,
+      'far_field_margin': self.far_field_margin,
+      'lookahead_ref': self.lookahead_ref,
     }
 
   def calc_impulse(self, vc: jax.Array) -> jax.Array:
@@ -381,6 +397,9 @@ class SapHuntCrossleyFrictionalContactConstraint(SapLaggedContactConstraint):
   stiffness: jax.Array
   hunt_crossley_damping: jax.Array
   contact_smoothing: jax.Array
+  # Static (non-array field); see solver_sap_util.hunt_crossley_normal_impulse.
+  far_field_margin: float = -1.0
+  lookahead_ref: float = -1.0
 
   def __post_init__(self):
     super().__post_init__()
@@ -399,6 +418,8 @@ class SapHuntCrossleyFrictionalContactConstraint(SapLaggedContactConstraint):
       'd': self.hunt_crossley_damping,
       'contact_smoothing': self.contact_smoothing,
       'bounce_speed_tol': _HUNT_CROSSLEY_BOUNCE_SPEED_TOL,
+      'far_field_margin': self.far_field_margin,
+      'lookahead_ref': self.lookahead_ref,
     }
 
   def gamma_n(self, vn: jax.Array) -> jax.Array:
@@ -442,7 +463,10 @@ class Context(PyTreeNode):
   def create(cls, m: Model, d: Data) -> 'Context':
     qM, qM_qvel_smooth = cls._linearize_unconstrained_dynamics(m, d)
 
-    cho_qM = jax.scipy.linalg.cho_factor(qM)
+    # The factor is used only for the (gradient-stopped) Delassus estimates and the initial guess, which the
+    # custom derivative of _solve ignores; stop its derivative so that forward-mode Jacobians do not push
+    # every tangent through the Cholesky factorization (batched triangular solves on the GPU) for nothing.
+    cho_qM = small_la.cho_factor(qM if small_la.is_small(qM.shape[-1]) else jax.lax.stop_gradient(qM))
 
     sap_constraints, efc_masks = cls._build_constraints(m, d, cho_qM)
 
@@ -452,7 +476,7 @@ class Context(PyTreeNode):
     elif warm_start:
       qvel_init = d.qvel
     else:
-      qvel_init = jax.scipy.linalg.cho_solve(cho_qM, qM_qvel_smooth)
+      qvel_init = small_la.cho_solve(cho_qM, qM_qvel_smooth)
 
     ctx = Context(
       qvel=qvel_init,
@@ -479,7 +503,7 @@ class Context(PyTreeNode):
     if m.opt.integrator == IntegratorType.IMPLICITFAST:
       qM -= derivative.deriv_smooth_vel(m, d) * dt
 
-    qM_qvel_smooth = qM @ d.qvel + d.qfrc_smooth * dt
+    qM_qvel_smooth = small_la.mv(qM, d.qvel) + d.qfrc_smooth * dt
 
     return qM, qM_qvel_smooth
 
@@ -502,7 +526,7 @@ class Context(PyTreeNode):
       efc_masks.append(mask)
 
       Jc = d._impl.efc_J[mask]
-      delassus = Jc @ jax.scipy.linalg.cho_solve(cho_qM, Jc.T)
+      delassus = small_la.mm(Jc, small_la.cho_solve(cho_qM, Jc.T))
 
       sap_constraints.append(
         SapFixedConstraint(
@@ -521,7 +545,7 @@ class Context(PyTreeNode):
       efc_masks.append(mask)
 
       Jc = d._impl.efc_J[mask]
-      delassus = Jc @ jax.scipy.linalg.cho_solve(cho_qM, Jc.T)
+      delassus = small_la.mm(Jc, small_la.cho_solve(cho_qM, Jc.T))
 
       sap_constraints.append(
         SapLimitConstraint(
@@ -584,6 +608,8 @@ class Context(PyTreeNode):
             hunt_crossley_damping=d._impl.efc_b[mask] * _HUNT_CROSSLEY_DAMPING_SCALE,
             dt=dt,
             contact_smoothing=jp.array(m.opt._impl.contact_smoothing),
+            far_field_margin=_far_field_margin(m),
+            lookahead_ref=_lookahead_ref(m),
           )
         )
 
@@ -608,7 +634,7 @@ class Context(PyTreeNode):
         sap_constraints.append(
           SapLogbarrierFrictionalContactConstraint(
             phi0=d._impl.efc_pos[efc_address],
-            vn0=d._impl.efc_J[efc_address] @ d.qvel,
+            vn0=jp.sum(d._impl.efc_J[efc_address] * d.qvel),
             friction=d._impl.contact.friction[k][:dim-1],
             tau=d._impl.efc_b[efc_address] / jp.maximum(d._impl.efc_k[efc_address], 1e-8),
             dt=dt,
@@ -620,7 +646,7 @@ class Context(PyTreeNode):
         sap_constraints.append(
           SapKelvinVoigtFrictionalContactConstraint(
             phi0=d._impl.efc_pos[efc_address],
-            vn0=d._impl.efc_J[efc_address] @ d.qvel,
+            vn0=jp.sum(d._impl.efc_J[efc_address] * d.qvel),
             stiffness=d._impl.efc_k[efc_address] * _STIFFNESS_SCALE,
             dissipation_time_scale=d._impl.efc_b[efc_address] / jp.maximum(d._impl.efc_k[efc_address], 1e-8),
             friction=d._impl.contact.friction[k][:dim-1],
@@ -633,12 +659,14 @@ class Context(PyTreeNode):
         sap_constraints.append(
           SapHuntCrossleyFrictionalContactConstraint(
             phi0=d._impl.efc_pos[efc_address],
-            vn0=d._impl.efc_J[efc_address] @ d.qvel,
+            vn0=jp.sum(d._impl.efc_J[efc_address] * d.qvel),
             stiffness=d._impl.efc_k[efc_address] * _STIFFNESS_SCALE,
             hunt_crossley_damping=d._impl.efc_b[efc_address] * _HUNT_CROSSLEY_DAMPING_SCALE,
             friction=d._impl.contact.friction[k][:dim-1],
             dt=dt,
             contact_smoothing=jp.array(m.opt._impl.contact_smoothing),
+            far_field_margin=_far_field_margin(m),
+            lookahead_ref=_lookahead_ref(m),
           )
         )
 
@@ -654,7 +682,7 @@ def _calc_constraint_impulse(ctx: Context) -> jax.Array:
 
   for efc_mask, sap_constraint in zip(ctx.efc_masks, ctx.sap_constraints):
     Jc = ctx.efc_J[efc_mask]
-    vc = Jc @ qvel
+    vc = small_la.mv(Jc, qvel)
     efc_impulse = efc_impulse.at[efc_mask].set(sap_constraint.calc_impulse(vc))
 
   return efc_impulse
@@ -662,14 +690,14 @@ def _calc_constraint_impulse(ctx: Context) -> jax.Array:
 
 def _calc_cost_gradient(ctx: Context) -> jax.Array:
   qvel = ctx.qvel
-  grad = ctx.qM @ qvel - ctx.qM_qvel_smooth
+  grad = small_la.mv(ctx.qM, qvel) - ctx.qM_qvel_smooth
 
   for efc_mask, sap_constraint in zip(ctx.efc_masks, ctx.sap_constraints):
     Jc = ctx.efc_J[efc_mask]
-    vc = Jc @ qvel
+    vc = small_la.mv(Jc, qvel)
 
     cost_grad = -sap_constraint.calc_impulse(vc)
-    grad += Jc.T @ cost_grad
+    grad += small_la.mtv(Jc, cost_grad)
 
   return grad
 
@@ -680,13 +708,13 @@ def _calc_cost_hessian(ctx: Context) -> jax.Array:
 
   for efc_mask, sap_constraint in zip(ctx.efc_masks, ctx.sap_constraints):
     Jc = ctx.efc_J[efc_mask]
-    vc = Jc @ qvel
+    vc = small_la.mv(Jc, qvel)
 
     cost_hess = -sap_constraint.calc_impulse_grad(vc)
     if cost_hess.ndim == 1:
-      hess += Jc.T @ (cost_hess[:, None] * Jc)
+      hess += small_la.mm(Jc.T, cost_hess[:, None] * Jc)
     else:
-      hess += Jc.T @ cost_hess @ Jc
+      hess += small_la.mm(Jc.T, small_la.mm(cost_hess, Jc))
 
   return hess
 
@@ -695,8 +723,8 @@ def _calc_step_direction(ctx: Context) -> Context:
   g = _calc_cost_gradient(ctx)
   H = _calc_cost_hessian(ctx)
 
-  choH = jax.scipy.linalg.cho_factor(H)
-  delta_qvel = jax.scipy.linalg.cho_solve(choH, -g)
+  choH = small_la.cho_factor(H)
+  delta_qvel = small_la.cho_solve(choH, -g)
 
   return ctx.replace(delta_qvel=delta_qvel)
 
@@ -709,25 +737,25 @@ def _eval_line_search_derivatives(
   qvel = ctx.qvel
 
   delta_qvel = ctx.delta_qvel
-  delta_p = ctx.qM @ delta_qvel
+  delta_p = small_la.mv(ctx.qM, delta_qvel)
 
-  dell_dalpha = delta_p.dot(qvel + alpha * delta_qvel) - delta_qvel.dot(ctx.qM_qvel_smooth)
+  dell_dalpha = jp.sum(delta_p * (qvel + alpha * delta_qvel)) - jp.sum(delta_qvel * ctx.qM_qvel_smooth)
 
-  d2ell_dalpha2 = delta_qvel.dot(delta_p)
+  d2ell_dalpha2 = jp.sum(delta_qvel * delta_p)
 
   for efc_mask, sap_constraint in zip(ctx.efc_masks, ctx.sap_constraints):
     Jc = ctx.efc_J[efc_mask]
-    vc = Jc @ (qvel + alpha * delta_qvel)
-    delta_vc = Jc @ delta_qvel
+    vc = small_la.mv(Jc, qvel + alpha * delta_qvel)
+    delta_vc = small_la.mv(Jc, delta_qvel)
 
     cost_grad = -sap_constraint.calc_impulse(vc)
-    dell_dalpha += delta_vc.dot(cost_grad)
+    dell_dalpha += jp.sum(delta_vc * cost_grad)
 
     cost_hess = -sap_constraint.calc_impulse_grad(vc)
     if cost_hess.ndim == 1:
-      d2ell_dalpha2 += delta_vc.dot(cost_hess * delta_vc)
+      d2ell_dalpha2 += jp.sum(delta_vc * (cost_hess * delta_vc))
     else:
-      d2ell_dalpha2 += delta_vc.dot(cost_hess @ delta_vc)
+      d2ell_dalpha2 += jp.sum(delta_vc * small_la.mv(cost_hess, delta_vc))
 
   return dell_dalpha, d2ell_dalpha2
 
@@ -914,9 +942,9 @@ def _solve_jvp(
   _, df = jax.jvp(f, primals, tangents)
 
   H = _calc_cost_hessian(ctx)
-  choH = jax.scipy.linalg.cho_factor(H)
+  choH = small_la.cho_factor(H)
 
-  dqvel = jax.scipy.linalg.cho_solve(choH, -df)
+  dqvel = small_la.cho_solve(choH, -df)
 
   return qvel, dqvel
 
@@ -943,7 +971,7 @@ def solve(m: Model, d: Data) -> Data:
 
   qacc = (ctx.qvel - d.qvel) / dt
   efc_force = _calc_constraint_impulse(ctx) / dt
-  qfrc_constraint = ctx.efc_J.T @ efc_force
+  qfrc_constraint = small_la.mtv(ctx.efc_J, efc_force)
 
   d = d.tree_replace({
       'qacc': qacc,

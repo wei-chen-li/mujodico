@@ -531,6 +531,14 @@ class OptionJAX(PyTreeNode):
   # SAP initial guess qvel + dt * qacc_warmstart instead of qvel (off by
   # default; used by the lifted transcription to start from x_{k+1}).
   sap_warmstart_qacc: bool = False
+  # Hunt-Crossley far field: velocity terms of the normal law are faded out
+  # for phi0 in [0, margin] (negative: legacy law, velocity everywhere).
+  contact_far_field_margin: float = -1.0
+  # Hunt-Crossley lookahead: with ref > 0 the smoothing lookahead is
+  # tau = dt * min(1, contact_smoothing / ref), so lowering the smoothing
+  # continuously recovers the unsmoothed law (tau = 0); negative: legacy
+  # (tau = dt whenever contact_smoothing > 0).
+  contact_lookahead_ref: float = -1.0
 
 
 

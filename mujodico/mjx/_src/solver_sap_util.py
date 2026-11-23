@@ -99,8 +99,30 @@ def kelvin_voigt_normal_impulse_grad(
   return -dt * k * time_scale * reciprocal_approx_relu_grad(-phi0 / time_scale - vn, eps)
 
 
+def _lookahead(dt, contact_smoothing, lookahead_ref):
+  """Smoothing lookahead tau. Legacy: dt whenever smoothing > 0 (a jump to a
+  2*dt prediction). With ``lookahead_ref > 0``: dt * min(1, eps / ref), so the
+  law tends continuously to the unsmoothed one as the smoothing goes to 0."""
+  if lookahead_ref is None or lookahead_ref <= 0:
+    return jp.where(contact_smoothing > 0, 1.0 * dt, 0.0)
+  return dt * jp.clip(contact_smoothing / lookahead_ref, 0.0, 1.0)
+
+
+def _far_field_blend(phi0, far_field_margin):
+  """Weight of the velocity terms of the normal law: 1 for phi0 <= 0, 0 for
+  phi0 >= far_field_margin (C1 smoothstep in between).  ``None`` or a
+  negative margin keeps the velocity terms everywhere (legacy law)."""
+  if far_field_margin is None or far_field_margin < 0:
+    return None
+  if far_field_margin == 0:
+    return jp.where(phi0 > 0, 0.0, 1.0)
+  t = jp.clip(phi0 / far_field_margin, 0.0, 1.0)
+  return 1.0 - t * t * (3.0 - 2.0 * t)
+
+
 def hunt_crossley_normal_impulse(
-    vn, phi0, dt, k, d, contact_smoothing, bounce_speed_tol, next_step=True
+    vn, phi0, dt, k, d, contact_smoothing, bounce_speed_tol, next_step=True,
+    far_field_margin=None, lookahead_ref=-1.0,
 ):
   """Computes the Hunt-Crossley normal contact impulse:
       γ(φ, vₙ) = δt k d relu_ε₁(-φ) relu_ε₂(1/d - vₙ),
@@ -108,30 +130,52 @@ def hunt_crossley_normal_impulse(
             φ₀ + δt vₙ  if next_step,
             φ₀          otherwise,
   and relu_ε is a smooth approximation of ReLU.
+
+  With ``far_field_margin >= 0`` the velocity enters only through
+  ``s(φ₀) vₙ`` with ``s`` = 1 in contact and 0 beyond the margin, so the
+  far field (the smoothing tail at a distance) depends on position alone and
+  cannot be amplified by approach speed.  Monotone in vₙ, so SAP stays convex.
   """
 
-  tau = jp.where(contact_smoothing > 0, 1.0 * dt, 0.0)
+  tau = _lookahead(dt, contact_smoothing, lookahead_ref)
   time_scale = (dt + tau) if next_step else (tau)
 
-  x1 = -phi0 - time_scale * vn
+  s = _far_field_blend(phi0, far_field_margin)
+  if s is not None and lookahead_ref is not None and lookahead_ref > 0:
+    # The far-field cap is part of the smoothing homotopy: it fades out with
+    # the smoothing, so smoothing -> 0 recovers the unsmoothed law exactly.
+    wgt = jp.clip(contact_smoothing / lookahead_ref, 0.0, 1.0)
+    s = 1.0 - wgt * (1.0 - s)
+  vn_eff = vn if s is None else s * vn
+
+  x1 = -phi0 - time_scale * vn_eff
   eps1 = jp.sqrt(4 * contact_smoothing * time_scale / (k * dt))
 
-  x2 = 1 / d - vn
+  x2 = 1 / d - vn_eff
   eps2 = bounce_speed_tol
 
   return dt * k * d * reciprocal_approx_relu(x1, eps1) * local_smooth_relu(x2, eps2)
 
 
 def hunt_crossley_normal_impulse_grad(
-    vn, phi0, dt, k, d, contact_smoothing, bounce_speed_tol, next_step=True
+    vn, phi0, dt, k, d, contact_smoothing, bounce_speed_tol, next_step=True,
+    far_field_margin=None, lookahead_ref=-1.0,
 ):
-  tau = jp.where(contact_smoothing > 0, 1.0 * dt, 0.0)
+  tau = _lookahead(dt, contact_smoothing, lookahead_ref)
   time_scale = (dt + tau) if next_step else (tau)
 
-  x1 = -phi0 - time_scale * vn
+  s = _far_field_blend(phi0, far_field_margin)
+  if s is not None and lookahead_ref is not None and lookahead_ref > 0:
+    # The far-field cap is part of the smoothing homotopy: it fades out with
+    # the smoothing, so smoothing -> 0 recovers the unsmoothed law exactly.
+    wgt = jp.clip(contact_smoothing / lookahead_ref, 0.0, 1.0)
+    s = 1.0 - wgt * (1.0 - s)
+  vn_eff = vn if s is None else s * vn
+
+  x1 = -phi0 - time_scale * vn_eff
   eps1 = jp.sqrt(4 * contact_smoothing * time_scale / (k * dt))
 
-  x2 = 1 / d - vn
+  x2 = 1 / d - vn_eff
   eps2 = bounce_speed_tol
 
   g1 = reciprocal_approx_relu(x1, eps1)
@@ -140,4 +184,5 @@ def hunt_crossley_normal_impulse_grad(
   dg1_dvn = reciprocal_approx_relu_grad(x1, eps1) * -time_scale
   dg2_dvn = local_smooth_relu_grad(x2, eps2) * -1
 
-  return dt * k * d * (dg1_dvn * g2 + g1 * dg2_dvn)
+  grad = dt * k * d * (dg1_dvn * g2 + g1 * dg2_dvn)
+  return grad if s is None else s * grad
