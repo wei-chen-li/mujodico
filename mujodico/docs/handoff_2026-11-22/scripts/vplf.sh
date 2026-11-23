@@ -5,6 +5,8 @@ H=/home/gchou/PycharmProjects/mujodico-main-dev/mujodico/docs/handoff_2026-11-22
 cd /home/gchou/PycharmProjects/mujodico-main-dev
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 [ -z "$DET" ] && unset XLA_FLAGS || export XLA_FLAGS="--xla_gpu_deterministic_ops=true --xla_gpu_enable_triton_gemm=false"
+# CPU1T=1: single-threaded Eigen on the CPU devices (read-outs, line search, backward pass); roundoff-level changes on Allegro
+[ -n "$CPU1T" ] && export XLA_FLAGS="${XLA_FLAGS:+$XLA_FLAGS }--xla_cpu_multi_thread_eigen=false"
 T=$1; R=$2; L=$3; O=$4; shift 4
 BASE="--warm pip --warm-ip 80 --lm 1 --mistrust 1 --dwell 10 --par-ls 1 --ro-every 2 --cycle 2"
 case $T in

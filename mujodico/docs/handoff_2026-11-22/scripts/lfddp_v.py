@@ -345,6 +345,19 @@ if __name__ == '__main__':
       true_one = jax.jit(_true_one)
       par_ro = ls_mode == 'par' and len(CPUS) >= 7
       plan_goal = jax.jit(lambda Q, g, X: _sc(Q, g, X[-1]))
+      if os.environ.get('PLF_FN_EXPORT', '1') != '0' and getattr(lms.solver, 'export_key', None) and lms.solver.export_dir:
+        # serve the driver's jitted functions from on-disk exports (tracing/lowering once across processes)
+        import hashlib
+        from hs_export import ExportedJit
+        _fk = hashlib.sha256('|'.join((lms.solver.export_key, getattr(truem.solver, 'export_key', '') or '',
+                                       hashlib.sha256(open(os.path.abspath(__file__), 'rb').read()).hexdigest(),
+                                       repr((vel_w, curv, opt('--clear-w', None, float), opt('--clear-margin', 0.0), qidx)))
+                                      ).encode()).hexdigest()
+        _xd = lms.solver.export_dir
+        for _n in ('_lin', '_bwd', '_fwd', '_fwd_b', '_cost', '_roll', '_forces', '_tvlqr', '_track'):
+          setattr(S, _n, ExportedJit(getattr(S, _n), 'S' + _n, _fk, _xd))
+        true_eval = ExportedJit(true_eval, 'true_eval', _fk, _xd); true_both = ExportedJit(true_both, 'true_both', _fk, _xd)
+        true_one = ExportedJit(true_one, 'true_one', _fk, _xd); plan_goal = ExportedJit(plan_goal, 'plan_goal', _fk, _xd)
     else:
       lms.update(task); truem.update(task)
     Qm = jp.asarray(getattr(task, 'metric_Q', task.Q)); g0 = jp.asarray(task.x_goal); x0 = jp.asarray(task.x_0)

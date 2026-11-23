@@ -79,3 +79,58 @@ class ExportedHomotopyIpPas(HomotopyIpPas):
     if self._xdir is None:
       return super()._run(params, S, chunk_end)
     return self._exported('loop', self._loop_impl, (params, S, jnp.asarray(chunk_end)))
+
+
+class ExportedJit:
+  """A jitted function served from an on-disk jax.export artifact: tracing and lowering happen once per argument
+  spec and platform across processes (the compile itself still goes through JAX's persistent cache).  Same StableHLO,
+  so the same results.  `key` must identify everything the function closes over (model, task structure, settings,
+  source).  Arguments must be arrays (or pytrees of arrays) committed to one device."""
+
+  def __init__(self, fn, name, key, xdir):
+    self.fn, self.name, self.key, self.xdir = fn, name, key, xdir
+    self._c = {}
+
+  def __call__(self, *args):
+    leaves, in_def = jax.tree.flatten(args)
+    leaves = [jnp.asarray(l) for l in leaves]
+    devs = {d for l in leaves for d in l.devices()}
+    dev = next(iter(devs)) if len(devs) == 1 else None
+    spec = repr(in_def) + repr([(tuple(l.shape), str(l.dtype)) for l in leaves])
+    ck = (spec, str(dev))
+    hit = self._c.get(ck)
+    if hit is not None:
+      return hit(leaves)
+    if dev is None or self.xdir is None:   # mixed devices: plain jit
+      return self.fn(*args)
+    plat = {'gpu': 'cuda'}.get(dev.platform, dev.platform)   # jax.export names the CUDA platform 'cuda'
+    wk = repr([bool(getattr(l, 'weak_type', False)) for l in leaves])
+    h = hashlib.sha256('|'.join((self.key, self.name, spec, wk, plat, jax.__version__)).encode()).hexdigest()[:40]
+    path = os.path.join(self.xdir, f'fn_{h}.jaxexp.pkl')
+    got = None
+    if os.path.exists(path):
+      try:
+        with open(path, 'rb') as f:
+          got = pickle.load(f)
+      except Exception:
+        got = None
+    if got is None:
+      box = {}
+      fn = self.fn
+      def flat(*ls):
+        out = fn(*jax.tree.unflatten(in_def, list(ls)))
+        o, box['out_def'] = jax.tree.flatten(out)
+        return o
+      exp = jax.export.export(jax.jit(flat), platforms=(plat,))(
+          *[jax.ShapeDtypeStruct(l.shape, l.dtype, weak_type=getattr(l, 'weak_type', False)) for l in leaves])
+      got = (dataclasses.replace(exp, _get_vjp=None), box['out_def'])
+      os.makedirs(self.xdir, exist_ok=True)
+      tmp = f'{path}.{os.getpid()}.tmp'
+      with open(tmp, 'wb') as f:
+        f.write(pickle.dumps(got))
+      os.replace(tmp, path)
+    exp, out_def = got
+    comp = jax.jit(exp.call).lower(*leaves).compile()
+    fn_ = lambda ls: jax.tree.unflatten(out_def, comp(*ls))
+    self._c[ck] = fn_
+    return fn_(leaves)
