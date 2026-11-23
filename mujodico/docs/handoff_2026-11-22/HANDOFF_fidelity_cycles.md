@@ -837,3 +837,38 @@ Asked: try (1) CPU line-search threading, (2) per-process start-up, (3) parallel
 | (3) Parallel processes (`vpar.sh`), PushT2dHard 6:18, current code | 1 GPU process 108 s; k = 2: 113 s (unlucky split), **k = 3: 60 s (1.8×)**, k = 4: 63 s, k = 6: 60 s; 3 GPU + 3 CPU-only: 76 s, 4 GPU + 2 CPU: 102 s (CPU-only processes compete with the GPU processes' CPU read-outs and line search); all 12/12 | use k = 3 GPU processes for small-task sweeps |
 
 Notes: the package edit invalidated the export cache once (first process per task re-exports, ~1–2 min). Not tried: a long-lived worker process serving many runs (would remove the ~27 s per-process start-up for repeated runs); fused kernels for the remaining linearization (command buffers 26 ms of the 46 ms pen iteration).
+
+## 13. Faster LPEC rescues (2026-11-23, evening)
+
+Asked: speed up the LPEC fallback and the PLF-V re-solve after each step without losing solves. Options tried, in order of payoff. Rows: `results/vcycle/r2.jsonl` (labels R2coarse = V14, R2fine, LVfast, LZgrb, LZfast), `lss.jsonl`, `ref.jsonl`; logs `results/vcycle/logs/`.
+
+**Where a rescue's time goes (V14).** LPEC solve 5–9 s of a 8–37 s rescue on the T (almost all of it the linearization's compile), 21–115 s of 96–490 s on the pen (linearization 18.5 s first call, MILP 9.4–11 s, QP 0.4–11.5 s per radius). The rest is the PLF-V re-solve: IP excursions 43 %, feasible phase 45 %, read-outs 13 %; polishing after the first success is 1 %.
+
+| Option | Result | Verdict |
+|---|---|---|
+| Linearization on the GPU, served from the export cache (`lpec_step.py`) | warm: pen 18.5 → 4.1 s, T 9.4 → 2.4 s; same step (pressed set and step goal identical) | adopted (default) |
+| Structured QP for the fixed-branch step (`scripts/lpec_fast.py`, `--lpec-solver fast`): primal-dual IP (Mehrotra) whose Newton systems are the package's stage-structured KKT systems, factored by the parallel associative scan; impulse step eliminated through the linearized law; Gurobi still chooses the branches | pen QP 0.15–0.5 s against 0.4–7.7 s; T 0.03 s against 0.1 s. More accurate: Gurobi's QP returns status 13 (suboptimal) on these problems, and its lower "model cost" comes from a slightly infeasible point; the structured solver matches a dense solve of the same problem to 1e-4 and converges to residuals ~1e-13. On the T it adds ~4 s of compile per process. Falls back to Gurobi's QP if the IP does not converge | adopted in V15 |
+| Branch choice without the MILP: sign test (one QP with every biactive pair closed and unloaded; press where dL/ds < 0, separate where the closed-gap multiplier is positive) | T: same branches as the MILP (or an equivalent set). Pen: 13/20 agreement and a smaller predicted decrease on one slide; on another it chose 19 presses whose closed-gap constraints are jointly infeasible within the trust region (the IP diverged) | not adopted |
+| Local search: sign-test set and all single flips as one vmapped QP batch, lowest model cost | better than the sign test (pen 14/20 agreement, −3.08 vs MILP −3.17) but 9–14 s: inside vmap the per-problem early stop becomes "run all iterations", so batching does not pay | not adopted |
+| Parallel trust radii, all at once (`--lpec-par 3`, rounds as threads in one process; the round body is now `run_round`) | rescues 7/7 but single-round rescues 2–5× slower (rounds of 4–9 s took 21–47 s: concurrent T rounds compete for Python and the CPU devices) | superseded by lazy |
+| **Lazy parallel radii** (`--lpec-par 3 --lpec-par-lazy 1`): the first radius alone; after a rejection the remaining radii concurrently | single-round rescues at V14 speed; multi-round rescues one round's wall time | adopted in V15 |
+| Rounds start at the fine level (`--lpec-start fine`: LFDDP at σ_min from the step instead of a coarse excursion) | T: rescued 5/7 against 6/7 (PushT2d 10 lost in all three rounds), accepted rounds not faster (9.3 vs 6.2 s, 9.5 vs 5.1 s); pen GN4: round 1 fell back to the slide, needed round 2 | rejected |
+| Speculative LFDDP attempts (`--ls-spec 1`: backward passes at reg and max(10 reg, 1e-4) up front, both line searches at once on CPU devices 0–4 and 5–9) | exact (deterministic ops: identical goals, iterations, line-search counts) but no gain (line search 13.0 vs 12.8 s): the CPU devices share one compute pool, ten concurrent rollouts cost about twice five | rejected (flag kept) |
+
+**Paired comparison on the stuck-plan set** (from the same stored plans; wall s; one run each):
+
+| Start | V14 (sequential, Gurobi) | 3 radii at once, fast QP | lazy, Gurobi | **lazy, fast QP (V15)** |
+|---|---|---|---|---|
+| PushT2dHard 23 (GCn) | ok 41 | ok 90 | ok 30 | ok 44 |
+| PushT2dHard 25 (GCn) | ok 30 | ok 45 | ok 30 | ok 37 |
+| PushT2d 10 (GCn) | ok 38 | ok 76 | ok 36 | ok 39 |
+| PushT2dHardLong 10 (GCn) | ok 106 | ok 92 | ok 56 | ok 45 |
+| PushT2dHardLong 11 (GCn) | ok 39 | ok 60 | ok 38 | ok 58 |
+| PushT2dHard 4 (V14 final plan, 0.137) | **miss** 162 | ok 70 | **miss** 91 | **ok 40** |
+| AllegroPen slide GN4 | ok 398 | ok 305 | ok 314 | **ok 147** |
+| **Total** | **6/7, 814 s** | 7/7, 738 s | 6/7, 595 s | **7/7, 410 s** |
+
+- Recommended: **`results/vcycle/V15flags.txt` = V14 + `--lpec-solver fast --lpec-par 3 --lpec-par-lazy 1`**. It changes only runs that reach the LPEC, so every other instance runs V14's path.
+- PushT2dHard seed 4 was solved by both fast-QP variants and missed by all three Gurobi variants (and by the final V14 run). This fits the finding that Gurobi's QP step is suboptimal here, but it is one seed.
+- Reference check: under deterministic ops, the current `lfddp_v.py` with default flags reproduces the committed V14 file (`44ca93a`) bit for bit (PushT2dHard 0–2 and knob seed 10: goals, iterations and events identical), so the refactor into `run_round` and the new flags leave V14's path unchanged.
+- Not done: replacing Gurobi's MILP. It is now the largest LPEC cost on the pen (~10 s per radius).

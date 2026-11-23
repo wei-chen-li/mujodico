@@ -83,6 +83,15 @@ def make_lpec(task, S, truem, lms):
     out = jax.vmap(st)(X[:-1], U, CF, X[1:])
     return out + (jax.grad(S.lterm)(X[-1], P), jax.hessian(S.lterm)(X[-1], P))
   true_cf = jax.jit(jax.vmap(lambda x, u: ts(x, u, jp.asarray(0.0))[1]))
+  # the linearization runs on the GPU, served from an on-disk export (tracing/compiling once across processes)
+  DEV = jax.devices()[0]
+  lin_fn = linearize
+  if os.environ.get('PLF_FN_EXPORT', '1') != '0' and getattr(lms.solver, 'export_key', None) and lms.solver.export_dir:
+    import hashlib
+    from hs_export import ExportedJit
+    _k = hashlib.sha256('|'.join((lms.solver.export_key, getattr(truem.solver, 'export_key', '') or '',
+                                  hashlib.sha256(open(os.path.abspath(__file__), 'rb').read()).hexdigest())).encode()).hexdigest()
+    lin_fn = ExportedJit(linearize, 'lpec_lin', _k, lms.solver.export_dir)
   Qm = np.asarray(getattr(task, 'metric_Q', task.Q))
   goal = lambda Xe: float(util.state_cost(Qm, task.x_goal, np.asarray(Xe[-1]), task.quaternion_w_idxs))
   ulb, uub = (np.asarray(b_, float) for b_ in task.u_bounds)
@@ -94,11 +103,13 @@ def make_lpec(task, S, truem, lms):
     if key in cache:
       return cache[key]
     cache.clear()
+    tb = time.perf_counter()
     us = jax.device_put(jp.asarray(np.asarray(us)), CPU)
     X, _ = truem._rollout(jax.device_put(jp.asarray(task.x_0), CPU), us, jp.asarray(0.0))
     CF = true_cf(X[:-1], us)
     P = trans.params
-    dfc, fx, fu, fc, Lx, Lu, gap, gx, lx, lu, hxx, huu, lN, hNN = [np.asarray(a) for a in linearize(X, us, CF, P)]
+    dfc, fx, fu, fc, Lx, Lu, gap, gx, lx, lu, hxx, huu, lN, hNN = [np.asarray(a) for a in lin_fn(*jax.device_put((X, us, CF, P), DEV))]
+    t_lin = time.perf_counter() - tb; tb = time.perf_counter()
     nrm = np.asarray(CF) @ np.asarray(S.G).T
     bi = list(zip(*np.nonzero((gap < GAP_TOL) & (nrm < F_TOL))))
     ix = lambda k: k * nx
@@ -152,12 +163,12 @@ def make_lpec(task, S, truem, lms):
       addblk(hxx[k] + 1e-8 * np.eye(nx), ix(k)); addblk(huu[k] + 1e-8 * np.eye(nu), iu(k))
     addblk(hNN + 1e-8 * np.eye(nx), ix(N))
     Qobj = sp.coo_matrix((qv, (qr, qc)), shape=(nvar, nvar))
-    out = dict(bi=bi, A=A, lo=np.array(lo), hi=np.array(hi), c=c, Q=Qobj, nvar=nvar, iu0=iu0, ic0=ic0, iz0=iz0,
+    out = dict(t_lin=t_lin, t_build=time.perf_counter() - tb, bi=bi, A=A, lo=np.array(lo), hi=np.array(hi), c=c, Q=Qobj, nvar=nvar, iu0=iu0, ic0=ic0, iz0=iz0,
                U0=np.asarray(us), iu=iu)
     cache[key] = out
     return out
 
-  def step(us, D):
+  def step(us, D, branch_only=False):
     t0 = time.perf_counter()
     m = build(us)
     bi = m['bi']
@@ -174,19 +185,26 @@ def make_lpec(task, S, truem, lms):
     lb[is0:iz0] = 0.0; ub[is0:iz0] = M_F
     lb[iz0:] = 0.0; ub[iz0:] = 1.0
     integ = np.zeros(nvar); integ[iz0:] = 1
+    tb = time.perf_counter()
     x0, msg0 = _grb(m['c'], m['A'], m['lo'], m['hi'], lb, ub, integ)
+    t_milp = time.perf_counter() - tb; tb = time.perf_counter()
     if x0 is None:
       return dict(nbi=len(bi), U1=None, msg='MILP: ' + msg0, time=time.perf_counter() - t0)
+    if branch_only:   # the MILP's branch choice only (the step itself is computed elsewhere)
+      return dict(nbi=len(bi), bi=bi, zs=np.round(x0[iz0:]).astype(int), t_milp=t_milp, t_lin=m.get('t_lin'),
+                  time=time.perf_counter() - t0, msg=msg0)
     lbq, ubq = lb.copy(), ub.copy(); zf = np.round(x0[iz0:]); lbq[iz0:] = zf; ubq[iz0:] = zf
     v, msg = _grb(m['c'], m['A'], m['lo'], m['hi'], lbq, ubq, np.zeros(nvar), m['Q'])
     if v is None:
       v, msg = _grb(m['c'], m['A'], m['lo'], m['hi'], lbq, ubq, np.zeros(nvar), m['Q'], extra=dict(NumericFocus=3, BarHomogeneous=1))
       if v is None:
         v, msg = x0, 'QP failed; MILP step'
+    t_qp = time.perf_counter() - tb
     du = v[iu0:ic0].reshape(N, nu)
     U1 = np.clip(U0 + du, ulb, uub)
     X1, _ = truem._rollout(jax.device_put(jp.asarray(task.x_0), CPU), jax.device_put(jp.asarray(U1), CPU), jp.asarray(0.0))
     zs = np.round(v[iz0:]).astype(int)
     return dict(nbi=len(bi), U1=U1, goal_true=goal(np.asarray(X1)), pressed=int(zs.sum()), msg=msg,
-                time=time.perf_counter() - t0)
+                time=time.perf_counter() - t0, t_lin=m.get('t_lin'), t_build=m.get('t_build'), t_milp=t_milp, t_qp=t_qp,
+                nvar=nvar, ncons=m['A'].shape[0], nnz=m['A'].nnz, bi=bi, zs=zs, pred=float(m['c'] @ v + 0.5 * v @ (m['Q'] @ v)))
   return step

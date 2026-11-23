@@ -28,10 +28,11 @@ incumbent's controls re-simulated at the new level.
 usage: lfddp.py <Task> <a:b> <label> <out.jsonl> [--sig0 1] [--sig-min 1e-3] [--kappa 0.25] [--stall 20]
        [--budget 250] [--stop-tol 3e-3] [--boosts 2] [--vel-w 1e3] [--curv 0|1] [--readout open|fb]
        [--lin-dev gpu|cpu] [--bf-dev cpu|gpu] [--tol-d 1e-4]"""
-import os, sys, json, time, dataclasses
+import os, sys, json, time, dataclasses, threading
+_PLOCK = threading.Lock()
 if '--par-ls' in sys.argv and sys.argv[sys.argv.index('--par-ls') + 1] != '0':
   # parallel line search: several CPU "devices" (one per step size), set before jax is imported
-  os.environ['XLA_FLAGS'] = (os.environ.get('XLA_FLAGS', '') + ' --xla_force_host_platform_device_count=8').strip()
+  os.environ['XLA_FLAGS'] = (os.environ.get('XLA_FLAGS', '') + ' --xla_force_host_platform_device_count=16').strip()
 import numpy as np
 import jax, jax.numpy as jp
 H_ = '/home/gchou/PycharmProjects/mujodico-main-dev/mujodico/docs'
@@ -290,6 +291,11 @@ if __name__ == '__main__':
   nu_merit = opt('--nu-merit', 1e3)
   lpec = opt('--lpec', 0, int)          # >0: at most this many LPEC branch-step rounds when PLF-V ends short of the goal
   lpec_d0 = opt('--lpec-delta', 0.05)   # LPEC trust radius (controls, inf-norm); /2.5 after a step without tau-decrease (<= 2 in a row)
+  ls_spec = opt('--ls-spec', 0, int)   # 1: speculative LFDDP attempts (backward at reg and 10 reg, both line searches at once)
+  lpec_solver = opt('--lpec-solver', 'grb', str)   # grb: Gurobi MILP + QP | fast: Gurobi MILP + structured IP QP (lpec_fast)
+  lpec_par = opt('--lpec-par', 1, int)
+  lpec_par_lazy = opt('--lpec-par-lazy', 0, int)   # 1: run the first radius alone, the next ones concurrently after a rejection   # >1: the next k trust radii of the LPEC shrink sequence run as concurrent rounds
+  lpec_start = opt('--lpec-start', 'coarse', str)   # coarse: an LPEC round starts with a coarse excursion | fine: LFDDP at sig_min
   v_local = opt('--v-local', 0, int)   # 1: fidelity-cycle excursions coarsen only the incumbent's contact-free stages (LFDDP)
   ro_overlap = opt('--ro-overlap', 0, int)   # 1: IP read-outs overlap the next IP chunk (same iterates)
   ip_hess = opt('--ip-hess', 1.0)        # lifted IP dynamics-curvature weight (0: Gauss-Newton on the dynamics)
@@ -302,7 +308,7 @@ if __name__ == '__main__':
       'sig0', 'sig_min', 'kappa', 'stall', 'budget', 'stop_tol', 'max_boosts', 'vel_w', 'curv', 'readout', 'tol_d',
       'lin_dev', 'bf_dev', 'reg0', 'mu0', 'mu_fac', 'lm', 'kscale', 'sig_ddp', 'mistrust', 'tau', 'eta', 'warm',
       'warm_ip', 'ip_mu', 'ip_mumin', 'ip_stall', 'handoff_from', 'nu_merit', 'ro_every', 'ls_mode', 'dwell',
-      'handoff_mucut', 'restart', 'cycle', 'ip_cycle', 'total_budget', 'vcyc', 'v_up', 'v_cap', 'v_stall', 'v_guard', 'v_budget', 'ip_ro', 'ip_ro_scope', 'v_restart', 'from_us', 'v_level', 'v_reset', 'prog_stall', 'v_bud_cycle', 'v_top', 'ip_hess', 'lpec', 'lpec_d0', 'ro_overlap', 'v_local', 'ip_hess_cyc')}
+      'handoff_mucut', 'restart', 'cycle', 'ip_cycle', 'total_budget', 'vcyc', 'v_up', 'v_cap', 'v_stall', 'v_guard', 'v_budget', 'ip_ro', 'ip_ro_scope', 'v_restart', 'from_us', 'v_level', 'v_reset', 'prog_stall', 'v_bud_cycle', 'v_top', 'ip_hess', 'lpec', 'lpec_d0', 'ls_spec', 'lpec_solver', 'lpec_par', 'lpec_par_lazy', 'lpec_start', 'ro_overlap', 'v_local', 'ip_hess_cyc')}
   a, b = (int(v) for v in rng_.split(':'))
   CPUS = jax.devices('cpu'); CPU = CPUS[0]; GPU = jax.devices()[0]
   DL = GPU if lin_dev == 'gpu' else CPU; DB = GPU if bf_dev == 'gpu' else CPU
@@ -365,7 +371,7 @@ if __name__ == '__main__':
     N, nu, nx = S.N, S.nu, S.nx
     p_base = trans.params
     Pof = lambda boosts: dataclasses.replace(p_base, Qf=p_base.Qf * 10.0 ** boosts) if boosts else p_base
-    T = dict(ip=0.0, lin=0.0, bwd=0.0, fwd=0.0, true=0.0, xfer=0.0, ro=0.0)
+    T = dict(ip=0.0, lin=0.0, bwd=0.0, fwd=0.0, true=0.0, xfer=0.0, ro=0.0, n_bwd=0, n_ls=0)
     def tg(us):
       t0 = time.perf_counter(); r = float(true_eval(QmC, g0C, x0C, toC(us))); T['true'] += time.perf_counter() - t0
       return r
@@ -376,7 +382,7 @@ if __name__ == '__main__':
     tic = time.perf_counter()
     U_from = None if from_us is None else np.asarray(np.load(from_us.format(seed=seed))['us'])
     lp_log = []; lp_D = lpec_d0; lp_shrink = 0; best = None; tot_it = 0; tot_ip = 0; lp_step = None
-    while True:   # round 0: PLF-V; round r > 0 (--lpec): PLF-V from an LPEC branch step at the best plan
+    def run_round(U_from, lpec_round):   # one PLF-V solve; round 0 from scratch (or --from-us), LPEC rounds from a step
       sig = sig0; boosts = 0; mu = mu0
       U = toB(jp.zeros((N, nu))) if U_from is None else toB(jp.asarray(U_from))
       X, C = sim(U, sig)
@@ -456,7 +462,8 @@ if __name__ == '__main__':
         the discovery barrier mu0 on the stages where the incumbent's true rollout has no contact force, the fine level
         (sig_f, mu_f) where it has.  Read-outs, ratio test and stall as in the feasible phase; before the true law
         responds only the cap ends it (as the coarse IP excursion).  Updates the incumbent."""
-        global r_inc, u_inc, its_ok, t_ok, SL
+        global SL
+        nonlocal r_inc, u_inc, its_ok, t_ok
         t0 = time.perf_counter()
         if SL is None:
           from lfddp_v_perstage import LFDDP as _LV
@@ -538,11 +545,12 @@ if __name__ == '__main__':
                   hess_=None):
         """Lifted IP exploration (PIP loop: IP chunks of 5, true-law read-outs, ratio test, stall) from (Xs, Us, Cs)
         at smoothing sig_ until its first model-change event.  Updates the incumbent."""
-        global r_inc, u_inc, its_ok, t_ok
+        nonlocal r_inc, u_inc, its_ok, t_ok
         t0 = time.perf_counter()
-        trans.params = Pof(boosts_)
-        prm = lms._params(dict(PHip, smoothing=sig_, **({} if hess_ is None else dict(hess=[hess_, 0, 0]))))
-        trans.params = p_base
+        with _PLOCK:   # the transcription's parameters are shared by concurrent rounds
+          trans.params = Pof(boosts_)
+          prm = lms._params(dict(PHip, smoothing=sig_, **({} if hess_ is None else dict(hess=[hess_, 0, 0]))))
+          trans.params = p_base
         prm['hom'] = jp.asarray([sig_, 1.0, 0.0, sig_, S.base])
         Sip = HS.start(prm, toG(Xs), toG(jp.concatenate([toB(Us), toB(Cs)], 1)), 5, max_iter=max(cap, hard_cap or 0))
         P_rec = None; R_rec = None; last_acc = 0; r_ref = r_inc; lp_ = 0; rp_ = r_inc
@@ -631,6 +639,14 @@ if __name__ == '__main__':
         handoff = 'fixed'
         if sig_ddp > 0:
           sig = sig_ddp
+      elif warm == 'pip' and U_from is not None and lpec_start == 'fine' and lpec_round:
+        # LPEC round, fine start: the step is a step on the true law's linearization with a chosen contact branch;
+        # continue with the feasible phase at the finest level (the ladder's end state: sig_min, barrier cut at every
+        # sharpening, no boost) instead of re-running discovery from a coarse level.  Cycles remain available.
+        sig = sig_min; mu = mu0 * mu_fac ** int(round(np.log10(sig0 / sig_min))); boosts = 0
+        handoff = 'lpec-fine'; ip_its = 0; Sip = None
+        events.append(('lpec-fine', round(r_inc, 4)))
+        X, U, C = cycle_start(U, sig, 'auto')
       elif warm == 'pip':
         if U_from is not None:   # the first exploration is a coarse excursion from an incumbent: cycle settings
           s_first = cycle_level(0)[0] if v_level in ('acc', 'tr') else sig0
@@ -671,50 +687,111 @@ if __name__ == '__main__':
         Jtask = J - float(jp.sum(jax.vmap(S.bar, (0, None))(C, toB(jp.asarray(mu)))))
         accepted = False; conv = False
         muB, epsB, PB = toB(jp.asarray(mu)), toB(eps), toB(P); ksB = toB(jp.asarray(kscale))
-        for _try in range(8):
-          t0 = time.perf_counter()
-          k, K, d1, d2, ok, lam_n = S._bwd(L, U, toB(jp.asarray(reg)))
-          d1, d2, ok = float(d1), float(d2), bool(ok)
-          T['bwd'] += time.perf_counter() - t0
-          if not ok:
-            reg = max(reg * 10, 1e-4); continue
-          if verbose:
-            print(f'  it {it} try {_try} reg {reg:.1e} d1 {d1:.3e} J {J:.4f} G0 {G0:.2e}', flush=True)
-          if G0 <= 1e-9 and abs(d1) < tol_d * max(Jtask, 1e-3):
-            conv = True; break
-          t0 = time.perf_counter()
-          if ls_mode == 'par':   # one step size per CPU device, dispatched concurrently
-            outs = []
+        if ls_spec and ls_mode == 'par':
+          # speculative attempts (same result as the sequential loop below): a rejected attempt is always followed by
+          # one at reg' = max(10 reg, 1e-4), so that backward pass is computed up front and both line searches run at
+          # once (CPU devices 0-4 and 5-9); they are evaluated in the sequential order.
+          def _ls(bw, off):
+            k_, K_ = bw[0], bw[1]
+            return [S._fwd(*[jax.device_put(t_, CPUS[off + ia]) for t_ in (X, U, C, k_, K_, fbar, hbar)],
+                           jax.device_put(jp.asarray(al), CPUS[off + ia]),
+                           *[jax.device_put(t_, CPUS[off + ia]) for t_ in (epsB, x0B, PB, muB, ksB)])
+                    for ia, al in enumerate(ALPHAS)]
+          def _bw(rg_):
+            t0 = time.perf_counter()
+            o = S._bwd(L, U, toB(jp.asarray(rg_))); T['n_bwd'] += 1
+            o = (o[0], o[1], float(o[2]), float(o[3]), bool(o[4]), o[5]); T['bwd'] += time.perf_counter() - t0
+            return o
+          def _accept(outs, bw):
             for ia, al in enumerate(ALPHAS):
-              dv = CPUS[ia]
-              outs.append(S._fwd(*[jax.device_put(t_, dv) for t_ in (X, U, C, k, K, fbar, hbar)],
-                                 jax.device_put(jp.asarray(al), dv), *[jax.device_put(t_, dv) for t_ in (epsB, x0B, PB, muB, ksB)]))
-            Xb = [o[0] for o in outs]; Ub = [o[1] for o in outs]; Cb = [o[2] for o in outs]
-            Jb = np.array([float(o[3]) for o in outs])
-          elif ls_mode == 'batch':
-            Xb, Ub, Cb, Jb = S._fwd_b(X, U, C, k, K, fbar, hbar, toB(jp.asarray(ALPHAS)), epsB, x0B, PB, muB, ksB)
-            Jb = np.asarray(Jb)
-          for ia, al in enumerate(ALPHAS):
-            if ls_mode == 'seq':
-              Xn, Un, Cn, Jn = S._fwd(X, U, C, k, K, fbar, hbar, toB(jp.asarray(al)), epsB, x0B, PB, muB, ksB)
-              Jn = float(Jn)
-            else:
-              Jn = float(Jb[ia])
-            exp = al * d1 + 0.5 * al * al * d2
-            if G0 > 1e-9:
-              okm = np.isfinite(Jn) and Jn + nu_merit * (1 - al) * G0 < J + nu_merit * G0
-            else:
-              okm = np.isfinite(Jn) and Jn - J <= 1e-4 * exp and Jn < J
-            if okm:
-              if ls_mode != 'seq':
-                Xn, Un, Cn = toB(Xb[ia]), toB(Ub[ia]), toB(Cb[ia])
-              accepted = True; alpha = al; break
-          T['fwd'] += time.perf_counter() - t0
-          if accepted:
-            break
-          reg = max(reg * 10, 1e-4)
-          if reg > 1e8:
-            break
+              Jn_ = float(outs[ia][3]); ex_ = al * bw[2] + 0.5 * al * al * bw[3]
+              if G0 > 1e-9:
+                okm_ = np.isfinite(Jn_) and Jn_ + nu_merit * (1 - al) * G0 < J + nu_merit * G0
+              else:
+                okm_ = np.isfinite(Jn_) and Jn_ - J <= 1e-4 * ex_ and Jn_ < J
+              if okm_:
+                return ia, al, Jn_
+            return None
+          n_try = 0; pend = None
+          while n_try < 8:
+            bwA = pend if pend is not None else _bw(reg)
+            pend = None
+            if not bwA[4]:
+              reg = max(reg * 10, 1e-4); n_try += 1; continue
+            if G0 <= 1e-9 and abs(bwA[2]) < tol_d * max(Jtask, 1e-3):
+              conv = True; break
+            reg_n = max(reg * 10, 1e-4)
+            bwB = _bw(reg_n) if (n_try + 1 < 8 and reg_n <= 1e8) else None   # before the line searches occupy the CPUs
+            t0 = time.perf_counter()
+            outA = _ls(bwA, 0); T['n_ls'] += 1
+            outB = _ls(bwB, 5) if (bwB is not None and bwB[4] and not (G0 <= 1e-9 and abs(bwB[2]) < tol_d * max(Jtask, 1e-3))) else None
+            resA = _accept(outA, bwA)
+            if resA is not None:
+              ia, alpha, Jn = resA; k, K, d1, d2, ok, lam_n = bwA
+              Xn, Un, Cn = toB(outA[ia][0]), toB(outA[ia][1]), toB(outA[ia][2]); accepted = True
+              T['fwd'] += time.perf_counter() - t0; break
+            T['fwd'] += time.perf_counter() - t0
+            reg = reg_n; n_try += 1
+            if reg > 1e8 or bwB is None:
+              break
+            if outB is None:      # attempt B: Cholesky failure or converged -> as the sequential loop
+              pend = bwB; continue
+            T['n_ls'] += 1; t0 = time.perf_counter()
+            resB = _accept(outB, bwB)
+            T['fwd'] += time.perf_counter() - t0
+            if resB is not None:
+              ia, alpha, Jn = resB; k, K, d1, d2, ok, lam_n = bwB
+              Xn, Un, Cn = toB(outB[ia][0]), toB(outB[ia][1]), toB(outB[ia][2]); accepted = True; break
+            reg = max(reg * 10, 1e-4); n_try += 1
+            if reg > 1e8:
+              break
+        else:
+          for _try in range(8):
+            t0 = time.perf_counter()
+            k, K, d1, d2, ok, lam_n = S._bwd(L, U, toB(jp.asarray(reg)))
+            T['n_bwd'] += 1
+            d1, d2, ok = float(d1), float(d2), bool(ok)
+            T['bwd'] += time.perf_counter() - t0
+            if not ok:
+              reg = max(reg * 10, 1e-4); continue
+            if verbose:
+              print(f'  it {it} try {_try} reg {reg:.1e} d1 {d1:.3e} J {J:.4f} G0 {G0:.2e}', flush=True)
+            if G0 <= 1e-9 and abs(d1) < tol_d * max(Jtask, 1e-3):
+              conv = True; break
+            t0 = time.perf_counter()
+            T['n_ls'] += 1
+            if ls_mode == 'par':   # one step size per CPU device, dispatched concurrently
+              outs = []
+              for ia, al in enumerate(ALPHAS):
+                dv = CPUS[ia]
+                outs.append(S._fwd(*[jax.device_put(t_, dv) for t_ in (X, U, C, k, K, fbar, hbar)],
+                                   jax.device_put(jp.asarray(al), dv), *[jax.device_put(t_, dv) for t_ in (epsB, x0B, PB, muB, ksB)]))
+              Xb = [o[0] for o in outs]; Ub = [o[1] for o in outs]; Cb = [o[2] for o in outs]
+              Jb = np.array([float(o[3]) for o in outs])
+            elif ls_mode == 'batch':
+              Xb, Ub, Cb, Jb = S._fwd_b(X, U, C, k, K, fbar, hbar, toB(jp.asarray(ALPHAS)), epsB, x0B, PB, muB, ksB)
+              Jb = np.asarray(Jb)
+            for ia, al in enumerate(ALPHAS):
+              if ls_mode == 'seq':
+                Xn, Un, Cn, Jn = S._fwd(X, U, C, k, K, fbar, hbar, toB(jp.asarray(al)), epsB, x0B, PB, muB, ksB)
+                Jn = float(Jn)
+              else:
+                Jn = float(Jb[ia])
+              exp = al * d1 + 0.5 * al * al * d2
+              if G0 > 1e-9:
+                okm = np.isfinite(Jn) and Jn + nu_merit * (1 - al) * G0 < J + nu_merit * G0
+              else:
+                okm = np.isfinite(Jn) and Jn - J <= 1e-4 * exp and Jn < J
+              if okm:
+                if ls_mode != 'seq':
+                  Xn, Un, Cn = toB(Xb[ia]), toB(Ub[ia]), toB(Cb[ia])
+                accepted = True; alpha = al; break
+            T['fwd'] += time.perf_counter() - t0
+            if accepted:
+              break
+            reg = max(reg * 10, 1e-4)
+            if reg > 1e8:
+              break
         mis = False
         if accepted:
           X, U, C, J = Xn, Un, Cn, Jn; lam = lam_n
@@ -830,37 +907,77 @@ if __name__ == '__main__':
           last_acc = it; lam = jp.zeros((N, nx)); P_rec = None; last_change = it; last_prog, r_prog = it, r_inc
       if handoff == 'done' or r_inc <= stop_tol:
         reason = 'done'
-      tot_it += it; tot_ip += ip_its
-      rnd = dict(r=r_inc, u=u_inc, reason=reason, handoff=handoff, sig=sig, mu=mu, boosts=boosts, P=P, events=events,
-                 trace=trace, cycles=n_v, fine_cycles=n_cycle, cyc_log=cyc_log, streams=streams, its_ok=its_ok, t_ok=t_ok)
-      if lp_log:
-        lp_log[-1].update(goal=round(r_inc, 4), t_round=round(time.perf_counter() - t_rnd, 1),
-                          accepted=bool(r_inc < (1.0 - tau) * best['r']))
-      if best is None or r_inc < best['r']:   # monotone: the best plan of all rounds is the incumbent
-        best = rnd
-      if not lpec or best['r'] < 0.01 or len(lp_log) >= lpec:
-        break
-      # branch-step fallback: every smoothed level is exhausted short of the goal
-      if lp_log and not lp_log[-1]['accepted']:   # the last step gave no tau-decrease: shrink the radius
-        lp_shrink += 1; lp_D /= 2.5
-        if lp_shrink > 2:
-          lp_log[-1]['stop'] = 'no improvement'; break
-      else:
-        lp_shrink = 0
+      return dict(r=r_inc, u=u_inc, reason=reason, handoff=handoff, sig=sig, mu=mu, boosts=boosts, P=P, events=events,
+                  trace=trace, cycles=n_v, fine_cycles=n_cycle, cyc_log=cyc_log, streams=streams, its_ok=its_ok, t_ok=t_ok,
+                  it=it, ip_its=ip_its)
+
+    best = run_round(U_from, False); tot_it, tot_ip = best['it'], best['ip_its']
+    # branch-step fallback: every smoothed level is exhausted short of the goal.  The best plan of all rounds is the
+    # incumbent (monotone); a round is accepted if it lowers the best true goal by the fraction tau.  With --lpec-par k,
+    # the next k trust radii of the shrink sequence (D, D/2.5, D/6.25) are tried at once, as concurrent rounds.
+    while lpec and best['r'] >= 0.01 and len(lp_log) < lpec:
       if lp_step is None:
         from lpec_step import make_lpec
-        lp_step = make_lpec(task, S, truem, lms)
-      t_rnd = time.perf_counter()
-      stp = lp_step(np.asarray(best['u']), lp_D)
-      lp_log.append(dict(delta=lp_D, nbi=stp['nbi'], t_lpec=round(stp['time'], 1)))
-      if stp['nbi'] == 0:
-        lp_log[-1]['stop'] = 'B-stationary'; break
-      if stp.get('U1') is None:
-        lp_log[-1]['stop'] = 'no step: ' + stp.get('msg', ''); break
-      lp_log[-1].update(pressed=stp['pressed'], step_goal=round(stp['goal_true'], 4))
-      print(f"  LPEC round {len(lp_log)}: delta {lp_D:g}, {stp['nbi']} biactive, pressed {stp['pressed']}, step goal "
-            f"{stp['goal_true']:.4f} ({stp['time']:.0f} s); best {best['r']:.4f}", flush=True)
-      U_from = stp['U1']
+        _grb_step = make_lpec(task, S, truem, lms)
+        if lpec_solver == 'fast':   # Gurobi MILP chooses the branches; the structured (parallel-in-time) QP gives the step
+          from lpec_fast import make_lpec_fast
+          _fast = make_lpec_fast(task, S, truem, lms)
+          def lp_step(u_, D_):
+            br = _grb_step(u_, D_, branch_only=True)
+            if br['nbi'] == 0 or br.get('zs') is None:
+              return br
+            z_ = np.zeros((S.N, S.G.shape[0]))
+            for b_, (k_, j_) in enumerate(br['bi']):
+              z_[k_, j_] = br['zs'][b_]
+            rf = _fast(u_, D_, mode='milp', milp_z=z_)
+            if rf['ok']:
+              rf['time'] += br['time']; rf['msg'] = 'fast ' + rf['msg']
+              return rf
+            rg_ = _grb_step(u_, D_); rg_['msg'] = 'fallback (IP not converged) ' + str(rg_.get('msg'))
+            return rg_
+        else:
+          lp_step = _grb_step
+      k_par = max(1, min(lpec_par, 3 - lp_shrink, lpec - len(lp_log)))
+      if lpec_par_lazy and lp_shrink == 0:   # first radius alone; the rest of the shrink sequence concurrently after a miss
+        k_par = 1
+      Ds = [lp_D / 2.5 ** i_ for i_ in range(k_par)]
+      t_rnd = time.perf_counter(); steps = []; stop = None
+      for D_ in Ds:
+        stp = lp_step(np.asarray(best['u']), D_)
+        ent = dict(delta=D_, nbi=stp['nbi'], t_lpec=round(stp['time'], 1))
+        if stp['nbi'] == 0:
+          ent['stop'] = 'B-stationary'; lp_log.append(ent); stop = True; break
+        if stp.get('U1') is None:
+          ent['stop'] = 'no step: ' + stp.get('msg', ''); lp_log.append(ent); stop = True; break
+        ent.update(pressed=stp['pressed'], step_goal=round(stp['goal_true'], 4))
+        steps.append((ent, stp['U1']))
+        print(f"  LPEC round {len(lp_log) + len(steps)}: delta {D_:g}, {stp['nbi']} biactive, pressed {stp['pressed']}, step goal "
+              f"{stp['goal_true']:.4f} ({stp['time']:.0f} s); best {best['r']:.4f}", flush=True)
+      if not steps:
+        break
+      if len(steps) == 1:
+        outs = [run_round(steps[0][1], True)]
+      else:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(len(steps)) as ex_:
+          outs = list(ex_.map(lambda su: run_round(su[1], True), steps))
+      t_b = time.perf_counter() - t_rnd; r_ref = best['r']
+      for (ent, _), o in zip(steps, outs):
+        tot_it += o['it']; tot_ip += o['ip_its']
+        ent.update(goal=round(o['r'], 4), t_round=round(t_b, 1), accepted=bool(o['r'] < (1.0 - tau) * r_ref), parallel=len(steps))
+        lp_log.append(ent)
+      ob = min(outs, key=lambda o: o['r'])
+      if ob['r'] < best['r']:
+        best = ob
+      acc = [i_ for i_, (ent, _) in enumerate(steps) if ent['accepted']]
+      if acc:     # sequential rule: an accepted step keeps its radius and resets the shrink count
+        lp_D = Ds[acc[0]]; lp_shrink = 0
+      else:
+        lp_shrink += len(steps); lp_D = Ds[-1] / 2.5
+        if lp_shrink > 2:
+          lp_log[-1]['stop'] = 'no improvement'; break
+      if stop:
+        break
     r_inc, u_inc = best['r'], best['u']
     reason, handoff, sig, mu, boosts, P = (best[k_] for k_ in ('reason', 'handoff', 'sig', 'mu', 'boosts', 'P'))
     events, trace, n_v, n_cycle, cyc_log, streams = (best[k_] for k_ in ('events', 'trace', 'cycles', 'fine_cycles', 'cyc_log', 'streams'))

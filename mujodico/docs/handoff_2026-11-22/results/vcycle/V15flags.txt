@@ -1,0 +1,1 @@
+--vcycle 10 --v-budget 400 --v-guard 3 --ip-readout lqr --v-level tr --v-reset always --prog-stall 1 --v-bud-cycle 1 --v-restart auto --ip-hess-cycle 0 --lpec 6 --lpec-solver fast --lpec-par 3 --lpec-par-lazy 1

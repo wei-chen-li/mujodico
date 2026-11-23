@@ -1,0 +1,597 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools,bm}
+\usepackage{booktabs,multirow,array,tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{cleveref}
+\crefformat{equation}{(#2#1#3)}
+\crefmultiformat{equation}{(#2#1#3)}{ and~(#2#1#3)}{, (#2#1#3)}{ and~(#2#1#3)}
+\usepackage{caption}
+\usepackage{graphicx}
+\newcommand{\fitwidth}[1]{\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{#1}}
+\setlength{\tabcolsep}{4pt}
+
+\crefname{table}{Table}{Tables}
+\crefname{section}{Sec.}{Secs.}
+\crefname{subsection}{Sec.}{Secs.}
+\crefname{problem}{Problem}{Problems}
+\crefname{proposition}{Proposition}{Propositions}
+\newcounter{algo}
+\crefname{algo}{Algorithm}{Algorithms}
+\Crefname{algo}{Algorithm}{Algorithms}
+\newtheorem{problem}{Problem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{assumption}{Assumption}
+\theoremstyle{remark}
+\newtheorem*{remark}{Remark}
+
+\newcommand{\ftrue}{f_{\mathrm{true}}}
+\newcommand{\fint}{f_{\mathrm{int}}}
+\newcommand{\epsref}{\bar{\epsilon}}
+\newcommand{\etas}{\eta_{\mathrm{s}}}
+\newcommand{\etastop}{\eta_{\mathrm{stop}}}
+\newcommand{\smin}{\sigma_{\min}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\inc}{U^\star}
+\newcommand{\rinc}{r^\star}
+\newcommand{\note}[1]{\textcolor{blue}{[#1]}}
+
+\title{Two-Sided Fidelity Management for Contact-Implicit Planning\\[2pt]
+\large Method and results (working draft, 2026-11-23)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Contact-implicit trajectory optimization plans through contact by optimizing against a smoothed contact model, whose far-field forces let the optimizer discover contacts that are not yet active. However, a plan for the smoothed model is not a plan for the physical system, and we judge every plan by executing its controls open-loop under the unsmoothed contact law. We view this setting as a two-fidelity optimization problem: the lifted, smoothed program is a cheap surrogate that proposes controls, and the exact rollout is the judge that accepts or rejects them. Existing model-management rules only ever sharpen the surrogate. Consequently, contact discovery happens once, early in the solve, and tasks that need a second contact mode later in the motion (re-positioning a pusher around a T-shaped block, or squeezing a pen to lift it after it has slid into place) end at a plan that every sharp model considers locally optimal. We propose to manage the model fidelity in both directions. When the sharpest model is exhausted short of the goal, a \emph{fidelity cycle} re-opens contact discovery from the best plan found so far at a coarse smoothing level, and contracts that level toward the physical law after every cycle that fails to make sufficient progress, as a trust region contracts after a failed step. Excursions at the coarse level are read out in closed loop and terminated by the response of the true dynamics rather than by an iteration count, and they use Gauss--Newton curvature, which is both cheaper and better suited to exploration. When every smoothed model is stationary, we take a branch step of a linear program with equilibrium constraints (LPEC) at the contacts that are simultaneously at zero gap and zero force. Every iterate that the method accepts is an exact rollout of the physical dynamics, so the returned plan's reported performance is its executed performance. On T-pushing, success under the unsmoothed dynamics rises from 2/6 to 29/30 instances (5/6 to 18/18 on the easier variant), the Allegro pen lift, which no previous configuration solved, is solved in 12 of 12 runs, and a 110-instance regression set stays at 110/110.
+\end{abstract}
+
+%=====================================================================
+\section{Introduction}
+%=====================================================================
+
+Consider a robot that must push a T-shaped block from an arbitrary pose to a target pose with a single point pusher. The pusher must make contact with the block, push it, break contact, travel around the block to a different face, and push again, possibly several times. Contact-implicit trajectory optimization \cite{posa2014direct,mordatch2012discovery} seeks such motions without prescribing the sequence of contacts in advance. A common way to give the optimizer information about contacts that are not yet active is to smooth the contact law, so that bodies exert a small, decaying force on each other at a distance \cite{pang2023global,suh2022bundled}. Lifted multiple shooting (LMS) \cite{li2027lifted} makes this particularly effective: it treats each contact impulse as a decision variable that is only required to agree with the smoothed contact law, so that a small far-field gradient is divided by, rather than multiplied by, in the Newton step, and the solver moves bodies toward contact from a contact-free initial guess.
+
+However, a plan for the smoothed contact model is not a plan for the robot. In this work, as in our earlier evaluation, a plan succeeds only if its controls, executed open-loop under the unsmoothed contact law, bring the system to the goal. This makes contact planning a \emph{two-fidelity} problem. The lifted, smoothed program is a cheap surrogate that proposes controls, and the exact rollout is an expensive, exact judge. The question is then how to manage the surrogate. Our previous pipeline, which we call PLF, answers this question in one direction only. It starts at a coarse smoothing level, where discovery is easy, and sharpens the smoothing whenever the surrogate's error at the best plan found so far is large compared to the remaining distance to the goal. This rule is sound, but it makes contact discovery a one-shot event: once the smoothing is sharp, the far field that drove discovery is gone. On tasks that need only one contact mode, this is harmless. On tasks that need a new contact mode partway through the motion, PLF ends at a plan that is locally optimal for every sharp model and still far from the goal. For the T-block, it pushes on one face and never re-positions; for an Allegro hand lifting a pen, it slides the pen to the goal's planar position and never discovers the squeezing grasp needed to lift it.
+
+Our key insight is that model fidelity should be managed in both directions, with the same logic that trust-region methods use to manage a step size \cite{conn2000trust,alexandrov1998trust}. When the sharpest model is exhausted short of the goal, we coarsen the model and re-open discovery from the best plan found so far. If this does not lead to sufficient progress, we contract the coarse level toward the physical law, as a trust region contracts after a failed step, and we reset it after a successful one. Every proposal is still judged by exact rollout, so coarsening the model can never make the returned plan worse. When even this fails, because every smoothed model is stationary at the current plan, we leave the smoothed models altogether and take a branch step on the complementarity structure of the unsmoothed contact law at the contacts that are both touching and unloaded.
+
+Our contributions are fourfold:
+\begin{itemize}[leftmargin=*]
+\item We pose contact-implicit planning under the unsmoothed dynamics as a two-fidelity optimization problem in which every accepted plan is an exact rollout of the physical dynamics, and we propose \emph{fidelity cycles}, a rule that manages the smoothing level in both directions. The rule is built from quantities the one-sided method already computes (the accuracy test, the sufficient-decrease constant, the factor-of-ten smoothing ladder), and the only new constant is a budget on the number of cycles (\cref{sec:cycles}).
+\item We show that exploration at a coarse level must be judged differently from refinement. Excursions are read out in closed loop, with time-varying LQR gains computed from the surrogate's linearization, because open-loop replays of long pushes hide the progress that the surrogate makes; they are terminated by the response of the true dynamics rather than by an iteration count; and they use Gauss--Newton curvature, which is 45--61\% cheaper per iteration on the Allegro tasks and, on the pen, solved 11 of 12 runs against 15 of 21 (\cref{sec:readout,sec:gn}).
+\item We integrate a branch step of a linear program with equilibrium constraints (LPEC) at biactive contacts into the solver as a fallback for the plans at which every smoothed model is stationary, with monotone acceptance and a shrinking trust region. We show by a control experiment that the step, and not the restart that follows it, frees these plans (\cref{sec:lpec}).
+\item We evaluate on T-pushing (three variants), Allegro pen lifting, Allegro jar opening, and a 110-instance regression set, with success defined by open-loop execution under the unsmoothed dynamics. We show that the cycles solve instances that 24 independent runs of the one-sided method never solve, that the pen, which no previous configuration solved, is solved in every run, and that the regression set is unaffected (\cref{sec:results}).
+\end{itemize}
+
+%=====================================================================
+\section{Related Work}
+%=====================================================================
+
+\note{Short draft; citations to be checked and extended.}
+Contact-implicit trajectory optimization treats contact forces as decision variables subject to complementarity constraints \cite{posa2014direct} or relaxes contact into a smooth penalty \cite{mordatch2012discovery}. Smoothing the contact dynamics, either analytically or by randomization, gives informative gradients through contact \cite{suh2022bundled,pang2023global}; our method uses an analytically smoothed law inside the lifted formulation of \cite{li2027lifted}. These approaches differ from ours in that they plan against one smoothing level, or a schedule fixed in advance, whereas we choose the level from the response of the unsmoothed dynamics and allow it to increase again after it has decreased.
+
+Managing a cheap approximation model with a trust region whose acceptance test uses the expensive model goes back to \cite{alexandrov1998trust}; see \cite{peherstorfer2018survey} for a survey of multi-fidelity methods. In that framework the trust region bounds the step in the decision variables. In our setting the step is generated by a solver that we do not control directly, so we place the trust region in the space of models: the radius is the smoothing level, and it contracts and resets according to the same sufficient-decrease logic.
+
+The feasible phase of our method is a feasibility-driven differential dynamic programming method \cite{mastalli2020crocoddyl} applied to the lifted contact variables, in the spirit of Gauss--Newton multiple shooting with nonlinear rollouts \cite{giftthaler2018family}. Finally, the stationarity concepts for programs with complementarity constraints \cite{luo1996mathematical,scheel2000mathematical} distinguish points that are stationary for every smooth relaxation from points that admit a descent direction on some branch of the complementarity; the LPEC step of \cref{sec:lpec} searches exactly those branches.
+
+%=====================================================================
+\section{Preliminaries and Problem Statement}
+\label{sec:prelim}
+%=====================================================================
+
+\Cref{tab:symbols} collects the symbols used throughout. We follow the notation of \cite{li2027lifted} where possible.
+
+\begin{table}[t]
+\centering
+\caption{Symbols.}
+\label{tab:symbols}
+\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+Symbol & Meaning \\
+\midrule
+$x = (q, v)$; $u$; $\gamma$ & state (generalized coordinates and velocities); control; contact impulse (one block per contact) \\
+$t = 0, \dots, T$; $\delta t$ & time index and horizon; timestep \\
+$U = u_{0:T-1}$; $\U$ & control sequence; actuator box \\
+$\fint(x, u, \gamma)$ & state transition given an impulse \\
+$\Phi_\epsilon(x, u)$ & impulse of the contact solve at smoothing $\epsilon$; $\Phi_0$ is the physical law \\
+$\epsref$; $\sigma$; $\epsilon = \sigma\epsref$ & task's nominal smoothing; smoothing multiplier (the \emph{level}); smoothing \\
+$\Sigma = \{\sigma_0, \sigma_0/10, \dots, \smin\}$ & smoothing ladder; $\sigma_0$ coarsest planning level, $\smin = 10^{-3}$ finest \\
+$f_\sigma(x,u) = \fint(x,u,\Phi_{\sigma\epsref}(x,u))$ & one step of the smoothed dynamics \\
+$\ftrue(x, u)$ & one step of the unsmoothed dynamics, applying every constraint force (contacts and joint limits) \\
+$X^\sigma(U)$, $X^{\mathrm{true}}(U)$ & rollouts of $U$ from $\hat x_0$ under $f_\sigma$ and under $\ftrue$ \\
+$e(x)$ & goal error of a state (\cref{eq:err}) \\
+$r(U) = e(x^{\mathrm{true}}_T(U))$ & \emph{true goal} of $U$ \\
+$J_\sigma(U) = e(x^\sigma_T(U))$ & \emph{plan goal} of $U$ at level $\sigma$ \\
+$\inc$, $\rinc = r(\inc)$ & incumbent (best controls so far) and its true goal \\
+$\etas = 0.01$, $\etastop = 0.003$ & success tolerance; stopping tolerance \\
+$\kappa = 0.25$ & accuracy fraction of the sharpening test \\
+$\tau = 0.05$, $\eta = 0.25$ & sufficient-decrease fraction; ratio-test fraction \\
+$b \in \{0,1,2\}$ & terminal-weight boost; the terminal weight is $10^b Q_f$ \\
+$\mu$ & barrier weight on contact impulses (contact attraction) \\
+$S = 20$; $C = 80$ & stall patience; discovery cap of an exploration (iterations) \\
+$c$; $j$; $\sigma_c = \sigma_0 10^{-j}$ & cycle index; number of consecutive unproductive cycles; level of a fidelity cycle \\
+$V$; $R$ & budget on fidelity cycles (10); budget on LPEC rounds (6) \\
+$K_t$; $\tilde Q, \tilde R, \tilde P$ & time-varying LQR gains; their weights \\
+$\B$; $\Delta$ & biactive set; LPEC trust radius \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Dynamics, contact, and the two fidelities}
+
+Consider a multibody system with state $x = (q, v)$ and control $u \in \U$. Given a contact impulse $\gamma$, the state transition is $x^+ = \fint(x, u, \gamma)$, a semi-implicit Euler step in which $\gamma$ enters only through $J(q)^\top \gamma$, with $J$ the contact Jacobian. The impulse is determined by a contact law: at every step, the next velocity minimizes a strongly convex problem whose solution gives $\gamma = \Phi_\epsilon(x, u)$, where $\epsilon \geq 0$ is the smoothing \cite{li2027lifted}. For $\epsilon > 0$, the normal impulse has a positive tail that decays with the gap, so that the law gives an optimizer information about contacts that are not yet active; at $\epsilon = 0$ it is the physical (Hunt--Crossley) law, which has zero gradient at any positive gap. We parametrize the smoothing by a multiplier of the task's nominal value, $\epsilon = \sigma \epsref$, and call $\sigma$ the \emph{level}. The levels form a ladder $\Sigma = \{\sigma_0, \sigma_0/10, \dots, \smin\}$, with $\sigma_0 = 1$ ($\sigma_0 = 10$ on the square knob) and $\smin = 10^{-3}$.
+
+We use two models of the dynamics. The \emph{surrogate} at level $\sigma$ is $f_\sigma(x, u) = \fint(x, u, \Phi_{\sigma\epsref}(x, u))$. The \emph{true} dynamics $\ftrue(x, u)$ is one step at $\epsilon = 0$ in which every constraint force of the contact solve, including joint-limit forces, is applied. Note that $f_\sigma$ at $\sigma \to 0$ and $\ftrue$ coincide except when a joint limit is active.
+
+\subsection{Problem statement}
+
+The task cost is $\sum_{t=0}^{T-1} \ell(x_t, u_t) + \ell_T(x_T)$ with $\ell(x,u) = \|x - x_g\|^2_Q + \|u - u_{\mathrm{ref}}\|^2_R$ and $\ell_T(x) = \|x - x_g\|^2_{Q_f}$, where quaternion blocks use the distance $1 - \langle \mathbf q, \mathbf q_g\rangle^2$ instead of the squared difference. We measure the goal error of a state as
+\begin{equation}
+\label{eq:err}
+e(x) := \|x - x_g\|^2_{Q_m} \quad (\text{quaternion blocks as above}),
+\end{equation}
+where $Q_m$ is the task's metric weight (equal to $Q$ unless the task defines it separately). For a control sequence $U$ we define the \emph{true goal} $r(U) := e(x_T)$ with $x_0 = \hat x_0$ and $x_{t+1} = \ftrue(x_t, u_t)$, and the \emph{plan goal} at level $\sigma$, $J_\sigma(U) := e(x_T)$ with $x_{t+1} = f_\sigma(x_t, u_t)$ instead.
+
+\begin{problem}[Contact planning under the unsmoothed dynamics]
+\label{prob:true}
+Given an initial state $\hat x_0$, a goal $x_g$, and a horizon $T$, find controls $U \in \U^T$ such that $r(U) \leq \etas$.
+\end{problem}
+
+We emphasize that success is decided by executing $U$ open-loop under $\ftrue$ from $\hat x_0$; a plan whose own terminal state reaches the goal, but whose controls do not, is a failure.
+
+\subsection{The lifted surrogate problem}
+
+We generate proposals by solving the lifted problem at a level $\sigma$,
+\begin{problem}[Lifted problem at level $\sigma$]
+\label{prob:lms}
+\begin{subequations}
+\label{eq:lms}
+\begin{align}
+\min_{x_{0:T},\, u_{0:T-1},\, \gamma_{0:T-1}} \quad & \textstyle\sum_{t=0}^{T-1} \ell(x_t, u_t) + 10^{b}\, \ell_T(x_T) - \mu \sum_{t} \sum_{i} \log g_i(\gamma_t) \label{eq:lms_cost}\\
+\text{s.t.} \quad & x_0 = \hat x_0, \quad x_{t+1} = \fint(x_t, u_t, \gamma_t), \label{eq:lms_dyn}\\
+& \gamma_t = \Phi_{\sigma\epsref}(x_t, u_t), \label{eq:lms_cons}\\
+& u_t \in \U, \quad |v_t| \leq \bar v, \qquad t = 0, \dots, T-1, \label{eq:lms_ineq}
+\end{align}
+\end{subequations}
+\end{problem}
+where $g_i(\gamma_t) \geq 0$ are the impulse lower bounds and $\bar v = 5$ is a velocity bound. In contrast to multiple shooting, the transition \cref{eq:lms_dyn} can be satisfied by any impulse, and the contact law enters only through the consistency constraint \cref{eq:lms_cons}. The barrier term in \cref{eq:lms_cost} keeps the impulses positive; since a positive impulse that is consistent with $\Phi$ requires a small gap, the barrier acts as an attraction toward contact, and its weight $\mu$ is a discovery parameter rather than a tolerance. We call $\|\gamma_t - \Phi_{\sigma\epsref}(x_t, u_t)\|_\infty$ the \emph{consistency residual}.
+
+%=====================================================================
+\section{Method}
+\label{sec:method}
+%=====================================================================
+
+\subsection{Overview}
+\label{sec:overview}
+
+Our method maintains an \emph{incumbent} $\inc$, the best controls found so far, and its true goal $\rinc = r(\inc)$. Proposals come from two solvers applied to \cref{prob:lms}: an interior-point method whose iterates are infeasible (the \emph{exploration step}, \cref{sec:explore}), and a feasibility-driven DDP method whose iterates are, after the first few, exact rollouts of the surrogate (the \emph{feasible phase}, \cref{sec:lfddp}). Every proposal is \emph{read out}: its controls are rolled out under $\ftrue$, and the result replaces the incumbent if its true goal is lower. Model management decides, at every event where a solver stops making progress, whether to sharpen the surrogate, to increase the terminal weight, or (our contribution) to coarsen it and re-open discovery. \Cref{alg:plfv} summarizes the method. Components that we inherit from PLF are described in \cref{sec:explore,sec:lfddp,sec:oneside}; our contributions are \cref{sec:cycles,sec:readout,sec:gn,sec:lpec}.
+
+\begin{proposition}[Monotonicity and exactness]
+\label{prop:mono}
+Let $\inc_k$ be the incumbent after the $k$-th read-out. Then $r(\inc_k)$ is nonincreasing in $k$, and the controls returned by \cref{alg:plfv} satisfy $r(U_{\mathrm{ret}}) = \min_k r(\inc_k)$, where the true goal is that of executing $U_{\mathrm{ret}}$ open-loop under $\ftrue$.
+\end{proposition}
+\begin{proof}
+A read-out replaces the incumbent only if the candidate's true goal is lower, and a closed-loop read-out (\cref{sec:readout}) records the controls it applied, whose open-loop rollout under the deterministic $\ftrue$ is the same trajectory. Across LPEC rounds (\cref{sec:lpec}) the best plan of all rounds is kept. The returned controls are the final incumbent.
+\end{proof}
+Thus, no rule in the method, including coarsening the model, can make the returned plan worse; the rules only decide where computation is spent.
+
+\paragraph{One search, applied twice.} Every mechanism of the method that re-starts a solve from the incumbent under a changed model follows the same pattern: try a model, keep the result if it is better (it is never worse, by \cref{prop:mono}), and move to the next model on an ordered \emph{ladder} if the result did not reduce the true goal by the fraction $\tau$. \Cref{alg:search} states this pattern once. A \emph{rung} is one model on the ladder, and a \emph{trial} is one attempt to improve the incumbent with one rung. \Cref{alg:plfv} is the whole method: PLF's first exploration and continuation, followed by two instances of the search. At level 1 the rungs are smoothing levels and a trial is a fidelity cycle (\cref{sec:cycles}); at level 2 the rungs are LPEC trust radii and a trial is an LPEC step followed by a whole level-1 search (\cref{sec:lpec}). The two levels are nested rather than merged because stationarity at a fine smoothing level says nothing about a coarse one, and stationarity at every smoothing level says nothing about the branches of the complementarity.
+
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}{0.96\linewidth}
+\small
+\refstepcounter{algo}\label{alg:search}\textbf{Algorithm \thealgo: Ladder search} \textsc{Search}$(U, (\rho_k)_{k \geq 0}, \textsc{Trial}, \textit{reset}, F, B)$\quad Input: incumbent $U$; rungs $\rho_0, \rho_1, \dots$; a trial that never returns a worse plan; the rung after a success (\textit{reset}); the number $F$ of consecutive failures that ends the search; a budget $B$ of trials. Output: incumbent.
+\begin{enumerate}[nosep,leftmargin=2em,label=\arabic*:]
+\item $k \gets 0$; $f \gets 0$; $n \gets 0$
+\item \textbf{while} $r(U) > \etas$ \textbf{and} $f < F$ \textbf{and} $n < B$ \textbf{do}
+\item \quad $U' \gets \textsc{Trial}(U, \rho_k)$; $n \gets n + 1$ \hfill ($r(U') \leq r(U)$)
+\item \quad \textbf{if} $r(U') \leq (1 - \tau)\, r(U)$ \textbf{then} $k \gets \textit{reset}(k)$; $f \gets 0$ \hfill (sufficient decrease)
+\item \quad \textbf{else} $k \gets k + 1$; $f \gets f + 1$
+\item \quad $U \gets U'$
+\item \textbf{return} $U$
+\end{enumerate}
+\end{minipage}}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\fbox{\begin{minipage}{0.96\linewidth}
+\small
+\refstepcounter{algo}\label{alg:plfv}\textbf{Algorithm \thealgo: PLF-V as two ladder searches}\quad Input: $\hat x_0$, $x_g$, $T$. Output: controls $\inc$ with $\rinc = r(\inc)$.
+\begin{enumerate}[nosep,leftmargin=2em,label=\arabic*:]
+\item $\inc \gets \textsc{Continue}(\textsc{Excursion}(0, \sigma_0;\ \textit{open loop, base curvature, stall}), \sigma_0)$ \hfill (PLF, \cref{sec:explore,sec:lfddp,sec:oneside})
+\item $\inc \gets \textsc{Search}\big(\inc,\ (\sigma_0 10^{-k})_{k = 0}^{K_\sigma - 1},\ T_1,\ \textit{reset} = 0,\ F = K_\sigma,\ B = V\big)$ \hfill (level 1, \cref{sec:cycles})
+\item $\inc \gets \textsc{Search}\big(\inc,\ (\Delta_0\, 2.5^{-k})_{k \geq 0},\ T_2,\ \textit{reset} = \text{identity},\ F = 3,\ B = R\big)$; stop at once if $\B(\inc) = \emptyset$ \hfill (level 2, \cref{sec:lpec})
+\end{enumerate}
+Trials and phases:
+\begin{itemize}[nosep,leftmargin=2em]
+\item $T_1(U, \sigma) = \textsc{Continue}(\textsc{Excursion}(U, \sigma;\ \textit{closed loop, Gauss--Newton, response-gated}), \sigma)$, with the barrier reset to $\mu_0$ and $b \gets 0$.
+\item $T_2(U, \Delta) = \text{the better of } U \text{ and lines 1--2 run from } U + \textsc{Lpec}(U, \Delta)$, with line 1's excursion taken as a level-1 trial at $\sigma_0$.
+\item $\textsc{Excursion}(U, \sigma; \cdot)$: the exploration step at level $\sigma$ from the lift of $U$ (its rollout under $f_\sigma$ if that reproduces $r(U)$ within $\kappa \max(r(U), 10^{-3})$, else its true states), read out every $m$ iterations, ending as stated by its arguments.
+\item $\textsc{Continue}(U, \sigma)$: the feasible phase from $U$ at $\sigma$; at each model-change event, sharpen if \cref{eq:acc} fails, else raise $b$ while $b < 2$, else run PLF's exploration at the current model (at most twice), else return. A budget stop short of $\etas$ also returns.
+\end{itemize}
+\end{minipage}}
+\end{figure}
+
+\begin{proposition}[Finite termination]
+\label{prop:finite}
+Let $r_0 > \etas$ be the true goal of the incumbent when a search of \cref{alg:search} starts. The search performs at most $\lceil \ln(r_0/\etas) / (-\ln(1-\tau)) \rceil$ trials that give sufficient decrease, and at most $F$ trials after the last of them. Hence it performs at most $F\,(1 + \lceil \ln(r_0/\etas)/(-\ln(1-\tau)) \rceil)$ trials, whatever the budget $B$.
+\end{proposition}
+\begin{proof}
+A trial with sufficient decrease multiplies the true goal by at most $1-\tau$, and trials never increase it, so after $n$ such trials $r \leq (1-\tau)^n r_0$, which is at most $\etas$ once $n \geq \ln(r_0/\etas)/(-\ln(1-\tau))$; the search then stops. Between two such trials, and after the last one, at most $F - 1$ consecutive trials fail, since the $F$-th consecutive failure ends the search.
+\end{proof}
+For example, with $r_0 = 3$, $\etas = 0.01$ and $\tau = 0.05$, a search performs at most 112 successful trials. Each trial is itself finite, because every solver call has an iteration budget. Thus, the budgets $V$ and $R$ are caps on cost, not part of the method, and the method stops in one of four states: at the goal, at a budget, at a plan where both levels are exhausted with a non-empty biactive set, or at a plan with no biactive pair (no branch to take).
+
+\begin{table}[t]
+\centering
+\caption{Settings that differ between call sites of \cref{alg:plfv}. We state them as arguments of the method rather than hide them in its control flow; the last column says whether a single setting was tried.}
+\label{tab:args}
+\small
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+ & Setting & Status \\
+\midrule
+X1 & Read-out: open loop in the first exploration and PLF's explorations; LQR closed loop in fidelity excursions; best of open loop and DDP gains in the feasible phase & closed loop in the first exploration was negative (\cref{sec:abl}) \\
+X2 & Curvature: base (dynamics rows) in PLF's IP calls; Gauss--Newton in fidelity excursions & Gauss--Newton everywhere was negative (\cref{sec:gnres}) \\
+X3 & Stall: any new incumbent before the first cycle, sufficient decrease after; response gating only in fidelity excursions & not yet tried \\
+X4 & PLF's two explorations at the current model, which are not rungs of level 1 & not yet tried \\
+X5 & Terminal weight $10^b Q_f$, $b \leq 2$ & not yet tried \\
+X6 & Step sizes $\{1, 0.5, 0.25, 0.1, 0.03\}$ and the regularization update tied to the accepted step & a 3-point grid was worse \\
+X7 & Per task class: barrier values, $\sigma_0 = 10$ on the knob, restart point & an automatic restart point was negative \\
+X8 & Level 2 keeps its radius after a success and shrinks by 2.5 (level 1 resets and shrinks by 10) & not yet tried \\
+X9 & Budgets: 250 and 400 iterations, 400 per cycle, $V = 10$, $R = 6$, caps 80 and 40 & caps on cost (\cref{prop:finite}) \\
+X10 & Barrier: reset per cycle, $\times 0.1$ per sharpening in the feasible phase, fixed in the IP & not addressed \\
+X11 & Two solvers: an infeasible IP for exploration, a feasible DDP for continuation & not yet tried \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The exploration step}
+\label{sec:explore}
+
+The exploration step runs a primal-dual interior-point method (IP-PAS \cite{li2027lifted}) on \cref{prob:lms} at a fixed level $\sigma$, from a start $(x_{0:T}, u_{0:T-1}, \gamma_{0:T-1})$. Its iterates violate \cref{eq:lms_dyn,eq:lms_cons}; the impulses are free to anticipate contacts that the states have not reached yet, which is what makes discovery possible. Every $m = 5$ iterations we read out the iterate: we roll out its controls under $\ftrue$ and update the incumbent. An excursion ends when $\rinc \leq \etastop$, when the ratio test \cref{eq:ratio} detects that the plan improves while the true dynamics does not follow, when no new incumbent has been found for $S = 20$ iterations (a \emph{stall}), or at a cap of $C = 80$ iterations. The first exploration of a solve starts from the zero-control rollout at $\sigma_0$.
+
+\subsection{The feasible phase}
+\label{sec:lfddp}
+
+After exploration, we continue with a feasibility-driven DDP method on the lifted variables. Let $(X, U, \Gamma)$ be the iterate, with dynamics gaps $\bar f_{t+1} = \fint(x_t, u_t, \gamma_t) - x_{t+1}$ and consistency gaps $\bar h_t = \gamma_t - \Phi(x_t, u_t)$ (we drop the level from $\Phi$ when it is clear). Since $\partial \bar h_t / \partial \gamma_t = I$, the linearized consistency constraint determines the impulse step exactly,
+\begin{equation}
+\label{eq:elim}
+\delta\gamma_t = \Phi_x\, \delta x_t + \Phi_u\, \delta u_t - \bar h_t,
+\end{equation}
+and substituting it into the linearized dynamics gives a standard linear system in the state and control steps,
+\begin{equation}
+\label{eq:lin}
+\delta x_{t+1} = A_t\, \delta x_t + B_t\, \delta u_t + a_t, \qquad A_t = f_x + f_\gamma \Phi_x, \quad B_t = f_u + f_\gamma \Phi_u, \quad a_t = \bar f_{t+1} - f_\gamma \bar h_t,
+\end{equation}
+where $f_x, f_u, f_\gamma$ are the Jacobians of $\fint$. In words, $A_t$ and $B_t$ are the Jacobians of the smoothed dynamics $f_\sigma$ obtained without ever differentiating through a rollout. We solve the resulting LQ subproblem with a Riccati recursion, with Gauss--Newton cost curvature, a projected-Newton box QP for the control bounds at every stage, and Levenberg--Marquardt regularization. The contact attraction of \cref{eq:lms_cost} is kept as a log barrier on each contact's \emph{normal} impulse $n_i(\gamma_t)$ (the sum of its pyramid edges), mapped through \cref{eq:elim}. We place it on the normal impulse rather than on every edge because a sliding contact carries exactly zero force on some edges, where an edge barrier is undefined.
+
+The forward pass is a nonlinear rollout with gap contraction: for a step size $\alpha$,
+\begin{equation}
+\label{eq:fwd}
+\hat u_t = \Pi_\U\big(u_t + \alpha k_t + K_t(\hat x_t - x_t)\big), \quad \hat\gamma_t = \Phi(\hat x_t, \hat u_t) + (1-\alpha)\bar h_t, \quad \hat x_{t+1} = \fint(\hat x_t, \hat u_t, \hat\gamma_t) - (1-\alpha)\bar f_{t+1},
+\end{equation}
+where $k_t, K_t$ are the feedforward and feedback terms of the Riccati recursion and $\Pi_\U$ projects onto the actuator box. In words, the step keeps a fraction $1-\alpha$ of each gap, so that a full step closes every gap and, from a consistent start, every iterate is an exact rollout of the surrogate. Step sizes $\alpha \in \{1, 0.5, 0.25, 0.1, 0.03\}$ are evaluated in parallel; we accept the largest one that decreases the cost (or the cost plus $\nu \|\text{gaps}\|_1$ while gaps remain). The feasible phase starts from the incumbent: either its rollout under $f_\sigma$, or its true-law states with surrogate impulses, which leaves dynamics gaps that the forward pass closes (\cref{sec:cycles}). Every other accepted iteration is read out, under $\ftrue$, both open-loop and with the DDP gains $K_t$ in closed loop; the better of the two is the candidate.
+
+\subsection{One-sided model management (inherited)}
+\label{sec:oneside}
+
+A \emph{model-change event} occurs when the feasible phase converges (no acceptable step, or an expected decrease below a tolerance), when it stalls ($S$ iterations without a new incumbent; after the first fidelity cycle, without a $\tau$-relative decrease of $\rinc$), or when the ratio test fires. PLF then applies two tests.
+
+\paragraph{Accuracy test.} The surrogate at level $\sigma$ is accurate enough at the incumbent if
+\begin{equation}
+\label{eq:acc}
+\big|J_\sigma(\inc) - J_{\smin}(\inc)\big| \leq \kappa\, \rinc.
+\end{equation}
+In words, the smoothing changes the predicted outcome of the incumbent by less than a fraction $\kappa$ of the distance that remains to the goal. If \cref{eq:acc} fails, we sharpen, $\sigma \gets \sigma/10$; otherwise the surrogate's own optimum is the problem, and we increase the terminal weight, $b \gets b+1$. We compare against the finest surrogate rather than against $\ftrue$ because $\ftrue$ also applies joint-limit forces that no level of smoothing models; a test against $\ftrue$ would sharpen on errors that sharpening cannot remove.
+
+\paragraph{Ratio test.} Let $p$ be the plan goal of the current iterate (the goal error of its own terminal state), $r$ its read-out, and $\underline p$, $\underline r$ the best values of each since the last model change. The test fires if
+\begin{equation}
+\label{eq:ratio}
+\underline p - p > \tau\, \underline p \qquad\text{and}\qquad \underline r - r < \eta\,(\underline p - p).
+\end{equation}
+In words, the plan set a new record by a non-negligible margin, but the true dynamics followed by less than a fraction $\eta$ of the plan's improvement: the solver is exploiting the surrogate. The test is enabled only after the true dynamics has responded at least once (a \emph{discovery guard}), because before any contact is made the plan improves while the true goal cannot, and this is the desired behavior.
+
+PLF manages fidelity in one direction: the level only decreases. After its ladder is exhausted (finest level, both boosts used, and two short explorations at the current level), it returns the incumbent.
+
+\subsection{Fidelity cycles}
+\label{sec:cycles}
+
+Our first contribution is the rule that applies when PLF would return a failure. We first state when it applies, then at which level, from which start, and what it does.
+
+\paragraph{Trigger.} A fidelity cycle starts when the ladder is exhausted and $\rinc > \etas$, or when the feasible phase's iteration budget ends with $\rinc > \etas$. The second condition treats a budget stop short of the goal as what it is: neither a success nor evidence that the current model is adequate.
+
+\paragraph{Level: a trust region in model space.} Let $r_c$ be the incumbent's true goal at the start of cycle $c$, and let $j$ count the consecutive cycles that ended without sufficient decrease,
+\begin{equation}
+\label{eq:j}
+j \gets \begin{cases} 0, & \rinc < (1 - \tau)\, r_{c-1}, \\ j + 1, & \text{otherwise}, \end{cases} \qquad \sigma_c = \sigma_0\, 10^{-j}.
+\end{equation}
+If $\sigma_c < \smin$, the method stops. In words, a cycle starts at the coarsest planning level, where discovery is easiest; after a cycle that did not reduce the true goal by the fraction $\tau$, the next cycle uses a level ten times finer; and after a productive cycle the level resets to $\sigma_0$. This is the radius update of a trust-region method \cite{conn2000trust}, with the smoothing level as the radius: a coarser model is a larger departure from the true dynamics, and it is trusted again only after it has produced sufficient decrease. We chose the trust-region rule over choosing the level by the accuracy test \cref{eq:acc} (the coarsest level whose error at the incumbent is within $\kappa\rinc$), which seems natural but performed worse (\cref{sec:abl}): it gives incumbents that are still far from the goal a fine level, at which progress creeps.
+
+\paragraph{Start.} The excursion starts from the incumbent's rollout under the cycle's surrogate $f_{\sigma_c}$ if that rollout reproduces the incumbent's outcome, $|J_{\sigma_c}(\inc) - \rinc| \leq \kappa\,\max(\rinc, 10^{-3})$; otherwise it starts from the incumbent's true states $X^{\mathrm{true}}(\inc)$ with impulses $\Phi_{\sigma_c\epsref}(x_t, \inc_t)$. We need this choice because the coarse rollout of a plan that is stuck in contact can be chaotic: for the same pen plan, tiny changes of the controls that leave the true goal at 0.597 change its goal under $f_{\sigma_0}$ to 0.6, 31, or 4647. The true states are always a faithful start, but they are not consistent with the surrogate, and the interior-point method then spends iterations closing gaps; we therefore use them only when the rollout fails the same accuracy test that PLF uses to sharpen.
+
+\paragraph{Excursion and hand-back.} The cycle runs the exploration step at $\sigma_c$, with the read-out and termination rules of \cref{sec:readout} and the curvature of \cref{sec:gn}. It then re-runs PLF's ladder from the new incumbent, starting at $\sigma_c$ with the barrier reset and with PLF's hand-off decision (sharpen once if \cref{eq:acc} fails at $\sigma_c$, otherwise one boost), and with a fresh iteration budget. In \cref{alg:plfv}, this is the trial $T_1$ of level 1, and \cref{eq:j} is line 4--5 of \cref{alg:search} with the reset to the top rung.
+
+
+\begin{remark}
+Every rule of the cycle reuses a constant that PLF already has: the factor of ten of the ladder, the fraction $\tau$ of the sufficient-decrease and ratio tests, the fraction $\kappa$ of the accuracy test, the patience $S$, the discovery cap $C$, and PLF's budget. The only new constant is the number of cycles $V$, a budget bound. We use $V = 10$; with $V = 6$, three runs stopped while every cycle was still productive, and a larger budget only adds iterations to runs that would otherwise fail.
+\end{remark}
+
+\subsection{Judging exploration by the response of the true dynamics}
+\label{sec:readout}
+
+Exploration at a coarse level differs from refinement in two ways that the read-out and termination rules must reflect.
+
+\paragraph{Closed-loop read-outs.} On a long push, the open-loop replay of an interior-point iterate under $\ftrue$ drifts away from the iterate's states within a few strokes, so that it shows no progress even when the iterate has found a better contact sequence. The feasible phase avoids this by reading out with its DDP gains, but the interior-point method provides no gains. We therefore compute them: let $(\bar x_t, \bar u_t, \bar\gamma_t)$ be the iterate, and let $A_t, B_t$ be the linearization \cref{eq:lin} of the surrogate at that iterate. The time-varying LQR gains
+\begin{equation}
+\label{eq:tvlqr}
+K_t = -(\tilde R + B_t^\top P_{t+1} B_t)^{-1} B_t^\top P_{t+1} A_t, \qquad P_t = \tilde Q + A_t^\top P_{t+1}(A_t + B_t K_t), \qquad P_T = \tilde P,
+\end{equation}
+with $\tilde Q = \mathrm{diag}(I_{n_q}, 0.1\, I_{n_v})$, $\tilde R = 10^{-2} I$, and $\tilde P = 10\tilde Q$, define the closed-loop read-out
+\begin{equation}
+\label{eq:cl}
+x_0 = \hat x_0, \qquad u_t = \Pi_\U\big(\bar u_t + K_t(x_t - \bar x_t)\big), \qquad x_{t+1} = \ftrue(x_t, u_t).
+\end{equation}
+In words, the read-out tracks the iterate's state trajectory under the true dynamics instead of replaying its controls blindly. The candidate is the better of the open-loop and the closed-loop read-out, and in both cases it is the control sequence that was actually applied, so the incumbent remains an open-loop plan (\cref{prop:mono}). We apply closed-loop read-outs only in the fidelity cycles; in PLF's first exploration they made the pen worse (\cref{sec:abl}), which we attribute to the read-out accepting partial progress early and anchoring the later phases on it.
+
+\paragraph{Termination by response.} The exploration step's stall rule assumes that the true dynamics responds quickly to the plan. In a coarse excursion from a stuck incumbent, the first useful response can take many iterations: the pusher must first travel to a new face. We therefore disable the stall rule until the true dynamics has responded during the current excursion (that is, until a read-out has improved the incumbent), and stop only at the cap $C$ before that. After the first response, the cap no longer binds: the excursion continues while it makes progress and stops on the ratio test, or after $S$ iterations without a $\tau$-relative decrease measured from the first response, or at the remaining budget. In words, we give an excursion time to find a response, and once it has one, we let it run as long as the response keeps improving. On the pen, the excursions that lead to a solution run for 100--390 iterations, while the true goal keeps improving (0.597 to 0.035--0.31).
+
+\subsection{Gauss--Newton curvature in the excursions}
+\label{sec:gn}
+
+The interior-point method uses the Hessian of the Lagrangian of \cref{prob:lms}. Our base configuration keeps the curvature of the dynamics rows \cref{eq:lms_dyn} and drops that of the consistency and inequality rows; this choice is needed for reliable convergence to consistency in the refinement phases. In the excursions of the fidelity cycles we drop the dynamics curvature as well (Gauss--Newton: cost curvature only), and keep the base configuration everywhere else. We justify this choice as follows. First, an excursion is not asked to converge: it proposes controls for read-out, and the feasible phase, not the excursion, restores consistency afterwards. Second, the exact curvature of a coarse surrogate is not more faithful to the true dynamics than its Gauss--Newton approximation, since both describe a model that we know to be wrong at the incumbent; Gauss--Newton also removes the indefinite part of the Hessian, which the interior-point method would otherwise have to regularize (we did not measure how often this happens). Third, it is cheap: on the Allegro tasks, the dynamics curvature is the most expensive part of an iteration, and dropping it reduces the cost of an interior-point iteration by 61\% on the pen and 45\% on the jar (\cref{tab:speed}). We do not drop it outside the excursions, because doing so changes the path of PLF itself, and we observed a regression on the regression set when we did (\cref{sec:gnres}). Keeping PLF's path unchanged also gives a useful guarantee: every instance on which no fidelity cycle fires is solved exactly as PLF solves it.
+
+\subsection{An LPEC branch step at biactive contacts}
+\label{sec:lpec}
+
+Fidelity cycles cannot help when every smoothed model is stationary at the incumbent. We observed this on the pen: some runs end on a plan that slides the pen across the palm, with fingertips grazing the pen at zero force, and no level responds. At such contacts the complementarity between gap and force is \emph{biactive} (both are zero), and the smooth relaxations, which choose one side of the complementarity locally, cannot see a descent direction that requires the other side, for example pressing at a graze \cite{scheel2000mathematical}.
+
+We therefore linearize the problem about the incumbent's \emph{true} trajectory $(X^{\mathrm{true}}, \inc, \Gamma^{\mathrm{true}})$, where $\Gamma^{\mathrm{true}}$ are the impulses of the unsmoothed law. Let $\phi_i(x)$ be the gap of contact $i$ and $n_i(\gamma)$ its normal impulse, and let
+\begin{equation}
+\label{eq:biactive}
+\B = \{(t, i) : \phi_i(x^{\mathrm{true}}_t) < 10^{-3},\ n_i(\gamma^{\mathrm{true}}_t) < 10^{-6}\}
+\end{equation}
+be the biactive set. With a binary variable $z_{t,i}$ per biactive pair and a nonnegative slack $s_{t,i}$ on its impulse rows, the LPEC step solves
+\begin{subequations}
+\label{eq:lpec}
+\begin{align}
+\min_{\delta X, \delta U, \delta\Gamma, s, z} \quad & \nabla \mathcal{J}^\top (\delta X, \delta U) + \tfrac12 (\delta X, \delta U)^\top H (\delta X, \delta U) \\
+\text{s.t.} \quad & \delta x_0 = 0, \quad \delta x_{t+1} = f_x \delta x_t + f_u \delta u_t + f_\gamma \delta\gamma_t + d_t, \label{eq:lpec_dyn}\\
+& \delta\gamma_t = \Phi_x \delta x_t + \Phi_u \delta u_t + s_t, \label{eq:lpec_law}\\
+& 0 \leq s_{t,i} \leq M_F\, z_{t,i}, \quad \min(\phi_{t,i}, 0) \leq \phi_{t,i} + \nabla\phi_{t,i}^\top \delta x_t \leq M_G (1 - z_{t,i}), \qquad (t,i) \in \B, \label{eq:lpec_branch}\\
+& \|\delta U\|_\infty \leq \Delta, \quad \inc + \delta U \in \U^T, \quad z \in \{0,1\}^{|\B|},
+\end{align}
+\end{subequations}
+where $\mathcal J$ is the task cost, $H$ is the positive-semidefinite projection of its block-diagonal Hessian, $d_t$ is the defect of the lifted dynamics at the true trajectory (e.g., joint-limit forces that $\fint$ does not apply), $\Phi$ is linearized at the finest level, $s_t$ is zero outside $\B$, and $M_F = 5$, $M_G = 0.05$ are big-M constants. In words, at each biactive contact the step chooses a branch: $z = 1$ (\emph{press}) keeps the gap closed and allows an extra impulse beyond the law, and $z = 0$ (\emph{separate}) keeps the law and allows the gap to open. All other contacts follow the linearized law. We solve \cref{eq:lpec} in two stages, because the mixed-integer QP stalls in its root relaxation: an MILP with the linear objective chooses the branch set $z$, and the convex QP with $z$ fixed gives the step. If $\B = \emptyset$, the incumbent has no branch to take (it is B-stationary in the sense of the linearization) and we stop.
+
+The step's controls $\inc + \delta U$ are then the start of a new level-1 search (the trial $T_2$ of \cref{alg:plfv}), whose first exploration is a coarse excursion from that start. We accept the round's result only through the monotone incumbent, and we shrink $\Delta$ by $2.5$ (from $0.05$) after a round without $\tau$-relative decrease, stopping after three such rounds in a row. Note that the step's own true goal is often worse than the incumbent's; the step is valuable because it moves the plan off a point at which every smoothed model is stationary, not because it is a descent step for the true goal.
+
+\subsection{Implementation}
+\label{sec:impl}
+
+Read-outs run on CPU devices, where a rollout of the unsmoothed dynamics is 7--12$\times$ faster than on the GPU, and the interior-point method runs on the GPU. We serialize the traced resumable interior-point loop to disk on first use (keyed by the package source, the model, the argument shapes, and the backend); this gives bit-identical iterates and removes 17\,s (T-pushing) to 25\,s (pen) of start-up per process. The LPEC is solved with Gurobi in the same process.
+
+%=====================================================================
+\section{Results}
+\label{sec:results}
+%=====================================================================
+
+We evaluate the method on the tasks in \cref{tab:tasks}, with success defined by \cref{prob:true}: the returned controls, executed open-loop under $\ftrue$ from $\hat x_0$, must reach $r(U) \leq \etas = 0.01$. All runs use one RTX 5070 Ti GPU and the same settings for every task, except for three settings that PLF already sets per task class (barrier weights, $\sigma_0 = 10$ on the knob, and the true-state hand-off on the pushing tasks). GPU arithmetic is not bitwise deterministic in our default configuration, so repeated runs of the same instance can differ; we report the number of runs, and we count a difference of one or two instances out of six as within noise. The recommended configuration, which we call V14, is PLF with fidelity cycles ($V = 10$), Gauss--Newton curvature in the cycles' excursions, and the LPEC fallback ($R = 6$). V13 denotes the same configuration with the base curvature in the excursions and without the LPEC fallback.
+
+\begin{table}[t]
+\centering
+\caption{Tasks. ``Gate'' is the regression set on which PLF was tuned.}
+\label{tab:tasks}
+\small
+\begin{tabularx}{\linewidth}{@{}lXcc@{}}
+\toprule
+Task & Description & Horizon & Instances \\
+\midrule
+PushT2d & point pusher moves a T-block from a random pose (yaw within $\pm1$\,rad) to the origin & 5\,s (100) & seeds 0--17 \\
+PushT2dHard & as PushT2d, initial yaw within $\pm2.6$\,rad & 7\,s (140) & seeds 0--29 \\
+PushT2dHardLong & PushT2dHard with a longer horizon & 11\,s (220) & seeds 0--17 \\
+AllegroPen & Allegro hand lifts a lying pen to a raised goal pose (one instance) & 4\,s (200) & runs \\
+AllegroJar / JarC & Allegro hand breaks a sealed jar lid and turns it 60--90$^\circ$ / with 3\,mm link clearance & 3\,s (60) & 5 / 5 \\
+Gate & two-finger sphere rotation (24, and 24 with $\pm$60--120$^\circ$ over 4\,s), sphere pushing (10, 10 hard), multi-sphere pushing (6), box pushing (6), Allegro ball reorientation (10) & 2--4\,s & 90 \\
+Knob & square knob turned from an angle within $\pm1$ revolution & 8\,s (400) & 20 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Main results}
+
+\Cref{tab:main} compares the method with PLF, the one-sided pipeline it extends. PLF solves 2/6 PushT2dHard instances, none of PushT2dHardLong, and does not lift the pen. In 24 development runs, the PLF stage of the method (the same process, before its first cycle) never solved seeds 0 and 4. With fidelity cycles (V13), PushT2dHard rises to 28/30 runs on seeds 0--5 and 22/24 on 24 new seeds, PushT2dHardLong to 17/18, and the pen is lifted in 15 of 21 runs. The final configuration V14 solves 29/30 PushT2dHard instances, 18/18 PushT2d, 17/18 PushT2dHardLong, and the pen in 12 of 12 runs, 11 of them without the LPEC fallback.
+
+\begin{table}[t]
+\centering
+\caption{Success under the unsmoothed dynamics (instances or runs with $r(U) \leq 0.01$). One run per instance unless a cell pools several runs (number of runs in brackets). PLF is the method without our contributions; V13 adds fidelity cycles; V14 additionally uses Gauss--Newton curvature in the cycles' excursions and the LPEC fallback.}
+\label{tab:main}
+\small
+\fitwidth{\begin{tabular}{@{}llccc@{}}
+\toprule
+Task & Instances & PLF & V13 & V14 \\
+\midrule
+PushT2d & seeds 0--5 & 5/6 & 6/6 (+24/24 with $V{=}6$, [4]) & 6/6 \\
+ & seeds 6--17 & -- & 11/12 & 12/12 \\
+PushT2dHard & seeds 0--5 & 2/6; seeds 0, 4: 0/24 runs & 28/30 [5] & 5/6 \\
+ & seeds 6--29 & -- & 22/24 & 24/24 \\
+PushT2dHardLong & seeds 0--5 & 0/6 & 6/6 (+16/18 with $V{=}6$, [3]) & 5/6 \\
+ & seeds 6--17 & -- & 11/12 & 12/12 \\
+AllegroPen & runs from scratch & 0/1 & 15/21 (incl.\ $V{=}6$) & 12/12 (11/12 without LPEC) \\
+AllegroJar / JarC & seeds 0--4 & 5/5 / 5/5 & 5/5 / 5/5 & = PLF (no cycle fires) \\
+Gate + Knob & 90 + 20 & 90/90, 19/20 [2] & 90/90, 20/20 [4] & 90/90, 20/20 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+There are three main takeaways from \cref{tab:main}. First, the fidelity cycles are what convert PLF's failures on the multi-stroke tasks: every cell that PLF fails is solved in most runs once cycles are added. Second, the gain does not cost the tasks that PLF already solves. This holds by construction, since the cycles run only after PLF has returned a failure and the code reproduces PLF exactly when no cycle fires (identical iterates, goals, and times on PushBox2d), and it is confirmed on the regression set in five runs (110/110 in each, versus PLF's 109/110: the cycles solve the knob instance that PLF always misses). Third, the pen is solved reliably. No configuration we tried before this work, including three different recipes, lifted the pen under the unsmoothed dynamics; all of them returned the same plan, which slides the pen across the palm to the goal's planar position (true goal 0.597). Note that the pen is a single instance, so its run counts measure run-to-run variability, not generalization across instances.
+
+\paragraph{What the solutions look like.} The T-pushing solutions consist of several pushes on different faces of the block, separated by relocations of the pusher; the failing PLF runs push one face once. The pen solutions lift the pen to the goal height of 10\,cm (9.2--10.1\,cm in the runs where we measured it), with position error 0.2--8.7\,mm and link--pen clearance within the margin in every run. The orientation error is 15--59$^\circ$ (from 90$^\circ$ at the start), and in the one run that the LPEC fallback rescued, the pen ends flipped (133$^\circ$). The task's metric weights orientation by 0.01, so these plans count as solved; the method optimizes the task as specified, and a task that requires the upright pose must weight it.
+
+\subsection{The mechanism, not run-to-run variation}
+\label{sec:mech}
+
+Since runs are not deterministic, a natural concern is that the cycles simply re-roll the solver until it succeeds. Three observations rule this out. First, in 24 independent runs, the PLF stage (before the first cycle) never solved seeds 0 and 4 of PushT2dHard (0/24 each); with cycles they were solved in 5/6 and 4/6 runs. Twenty-four independent re-rolls are a stronger control than a matched-budget best-of comparison, and re-rolling never solves these instances. Second, with deterministic GPU arithmetic, the cycles solve 5/6 PushT2dHard instances and PushT2d 6/6, and the full pen pipeline also succeeds (0.0029). Third, the cycle logs show monotone progress, one coarse excursion at a time; for example, on seed 0 the incumbent's true goal goes 1.954, 1.714, 1.136, 0.852, 0.737, 0.183, and then below $\etas$.
+
+\Cref{tab:exc} shows where the excursions find progress. Excursions at $\sigma_0$ are productive in 57 of 69 cases; the finer levels that the trust-region rule reaches after failed cycles are productive in 3 of 12 (and in a later set of runs, 1 of 21). Thus, almost all of the benefit comes from re-opening discovery at the coarse level, and the contraction mainly bounds the cost of a run that will fail. We keep the contraction because it makes the rule a trust region with a guaranteed end, and because removing it (cycles at fixed levels) left near misses unsolved (\cref{tab:abl}). Overall, 45\% of excursion iterations were spent in unproductive excursions.
+
+\begin{table}[t]
+\centering
+\caption{Coarse excursions on PushT2dHard (81 excursions, development runs with the final rules).}
+\label{tab:exc}
+\small
+\fitwidth{\begin{tabular}{@{}lcc@{}}
+\toprule
+Level & Excursions & Productive (true goal reduced) \\
+\midrule
+$\sigma_0$ & 69 & 57 \\
+finer ($\sigma_0/10, \dots$) & 12 & 3 \\
+\midrule
+Iterations in unproductive excursions & \multicolumn{2}{c}{1680 of 3710 (45\%)} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Ablations}
+\label{sec:abl}
+
+\Cref{tab:abl} removes one ingredient of the fidelity cycle at a time (PushT2dHard seeds 0--5, one run each, against 5--6/6 per run for the full rule). The closed-loop read-out and the ladder reset after every cycle are clearly needed: without the closed-loop read-out, excursions run to the cap without seeing the progress they make, and every development run before we added it ended at 2--3/6. The other ingredients each cost about one instance on PushT2dHard, which is within noise, but they are needed on the pen: without response-gated termination the excursion that lifts the pen was stopped while still improving, without the sufficient-decrease stall the feasible phase crept for 350 iterations at a large regularization, and without the reproduction test for the start, the coarse rollout of a stuck pen plan diverged.
+
+\begin{table}[t]
+\centering
+\caption{Ablations of the fidelity cycle (PushT2dHard seeds 0--5, one run each; the full rule solves 5--6/6 per run, 37/42 over 7 runs with $V = 6$) and alternatives that we rejected.}
+\label{tab:abl}
+\small
+\fitwidth{\begin{tabular}{@{}lll@{}}
+\toprule
+Variant & Solved & Remaining misses (true goal) \\
+\midrule
+Without the closed-loop read-out (open loop only) & 4/6 & 1.82, 0.24 \\
+Without the ladder reset after every cycle & 4/6 & 0.72, 0.014 \\
+Cap binds after the first response & 5/6 & 0.15 \\
+Without the sufficient-decrease stall & 5/6 & 0.014 \\
+Fixed levels ($\sigma_0$, then $10\sigma_0$) instead of the trust region & 5/6 & 0.19 \\
+Without the budget-stop trigger & 6/6 & -- \\
+\midrule
+Level from the accuracy test (coarsest level within $\kappa\rinc$) & 4/6 & creeping far incumbents \\
+Closed-loop read-out also in PLF's first exploration & 5/6, 5/6 & pen 0/2 (0.18, 0.16) \\
+Coarse only on contact-free stages (feasible phase on a mixed model) & seed 4: 0.41, 1.63 & vs.\ 0.09--0.20 with the full rule \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Two rejected alternatives are instructive. Choosing the level by the accuracy test, i.e., the coarsest level that is accurate at the incumbent, solves near misses at once but gives incumbents that are still far from the goal a fine level, at which each cycle makes 10--30\% progress; the trust-region rule reaches fine levels only after coarse ones have failed. Coarsening the model only on the stages where the incumbent has no contact, while keeping the contact stages at the fine level, seems attractive because it leaves established contacts undisturbed. However, implemented in the feasible phase, it never discovered a new face: the feasible phase keeps its iterates consistent, and it is the interior-point method's freedom to violate consistency that makes discovery possible.
+
+\subsection{Curvature in the excursions}
+\label{sec:gnres}
+
+\Cref{tab:gn} compares three choices of curvature. Gauss--Newton everywhere changes PLF's own path, and we observed a regression on the regression set: PushBox2d seed 5 ends at 0.0091 after five cycles and 18\,s, reproducibly, where PLF solves it in about 1\,s; it also solves the pen in only 4 of 9 runs. Gauss--Newton in the excursions only keeps PLF's path, and on the pen it is both cheaper and more effective than the base curvature (11/12 runs without the LPEC fallback versus 15/21). On the T-pushing tasks the three choices are within noise of each other on new instances; on seeds 0--5, Gauss--Newton in the excursions misses seed 0 in all three runs (it stalls at 1.31, where no excursion responds), and in V14 the LPEC fallback recovers it.
+
+\begin{table}[t]
+\centering
+\caption{Curvature of the interior-point method. ``Base'' keeps the dynamics curvature, ``GN'' drops it. Runs in brackets.}
+\label{tab:gn}
+\small
+\fitwidth{\begin{tabular}{@{}lccc@{}}
+\toprule
+ & Base everywhere (V13) & GN everywhere & GN in excursions only \\
+\midrule
+Gate + Knob & 90/90, 20/20 & 90/90, 20/20 (PushBox2d seed 5: 0.0091) & 90/90, 20/20 \\
+PushT2dHard seeds 0--5 & 28/30 [5] & 18/18 [3] & 13/18 [3] \\
+PushT2dHard new seeds & 22/24 (6--29) & 11/12 (6--17) & 22/24 (6--29) \\
+PushT2d / Long, new seeds & 11/12 / 11/12 & -- / 5/6 & 10/12 / 10/12 \\
+AllegroPen, without LPEC & 15/21 & 4/9 & 11/12 \\
+Pen wall time per solved run & 136\,s (idle); 170--320\,s & 137--232\,s & 70--131\,s \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{The LPEC fallback}
+\label{sec:lpecres}
+
+\Cref{tab:lpec} shows the fallback on the plans at which the fidelity cycles stopped. On the pen, it solved 5 of 6 slides that we encountered with V13 (the sixth reached 0.040 when its round budget ended), and both slides on which we tested the in-solver version. On T-pushing, we ran V14 on the six instances that GN-in-excursions had missed: one was solved without a round, and the remaining five were solved after one or two rounds. In three of these five, the step pressed no branch; it was the true-law trust-region step with the complementarity kept, and its own true goal was worse than the incumbent's (e.g., 0.545 to 1.18). To test whether the step or merely the restart frees these plans, we restarted the method from the same stuck plans without the step: it stayed on 4 of the 5, and every coarse excursion ended at its cap without a response. Thus, the step is responsible. Note that this sample is small.
+
+\begin{table}[t]
+\centering
+\caption{The LPEC fallback.}
+\label{tab:lpec}
+\small
+\fitwidth{\begin{tabular}{@{}lll@{}}
+\toprule
+Start & Result & Notes \\
+\midrule
+Pen slides (0.597), PLF-V ($V{=}6$ or 10), outer loop & 5/6 solved & sixth: 0.040 at the round budget \\
+Pen slide PV11d, in-solver & 0.0018 & one round; 253\,s vs.\ 556\,s for the outer loop \\
+Pen slide, V14 & 0.0022 & one round (20 biactive, 6 pressed) \\
+Pen near miss, V14 (0.0745) & 0.0084 & third round ($\Delta = 0.008$); pen ends flipped \\
+T-pushing misses, V14 & 5/5 solved (1--2 rounds) & restart without the step: 1/5 \\
+PushT2dHard seed 4, V14 & 0.137 (miss) & four rounds; then the shrink rule stops \\
+PushT2dHardLong seed 0, V14 & 0.609 (miss) & $\B = \emptyset$: no branch \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Computation}
+\label{sec:speed}
+
+\Cref{tab:speed} reports where the time goes. On the T-pushing tasks the interior-point iteration costs about 13\,ms regardless of the curvature, because these small problems are limited by kernel launches, not by arithmetic. On the Allegro tasks, dropping the dynamics curvature reduces the iteration cost by 45--61\%. A profile of the pen iteration shows a GPU-bound computation. Its batched triangular solves (16\,ms per iteration) came from differentiating the Cholesky factorization of the $22\times22$ mass matrix in the dynamics and in the contact solve, with one right-hand side per tangent direction of the forward-mode Jacobians. Differentiating the solve $M^{-1}b$ directly instead, as $M^{-1}(\delta b - \delta M\, M^{-1} b)$ with $M^{-1}$ formed once and applied as a matrix product, gives the same Jacobians up to rounding ($5\cdot10^{-13}$ relative) and reduces the pen's interior-point iteration from 54.7 to 45.9\,ms (Gauss--Newton) and its LFDDP linearization from 39 to 28\,ms. Instances on which cycles fire take longer than PLF's failed attempt: 6--20\,s on PushT2dHard where PLF returns after 3--5\,s, which we consider a good trade, since PLF's result is a failure.
+
+\begin{table}[t]
+\centering
+\caption{Computation (idle GPU unless noted). Wall times are medians per instance and exclude the first instance of a process.}
+\label{tab:speed}
+\small
+\fitwidth{\begin{tabular}{@{}lccc@{}}
+\toprule
+ & AllegroPen & AllegroJarC & PushT2dHard \\
+\midrule
+IP iteration, base curvature & 139\,ms & 58\,ms & 12.8\,ms \\
+IP iteration, Gauss--Newton & 54\,ms (46 with the solve derivative) & 32\,ms & 12.6\,ms \\
+Read-out (lin.\ + LQR + two true rollouts), per 5 iterations & 125\,ms & -- & 20\,ms \\
+Start-up of the IP loop, traced / exported & 40\,s / 14\,s & -- & 26\,s / 9\,s \\
+\midrule
+V14 wall time per instance & 100\,s (70--108; 738 with three LPEC rounds) & -- & 7.1\,s \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{What the results support}
+
+We believe the following conclusions are well supported. (i) Re-opening discovery from the incumbent at a coarse level, with acceptance by the true dynamics, solves multi-stroke instances that the one-sided method does not solve in 24 independent runs, and this holds under deterministic arithmetic. (ii) The cycles do not change the results of the one-sided method on the instances it solves, by construction and in five runs of the 110-instance regression set. (iii) For the pen, the method turns a task that no previous configuration solved into one that it solves in every run, at about 100\,s per run. (iv) When every smoothed model is stationary, the LPEC branch step frees the plan where a restart does not, on both T-pushing and the pen. (v) Gauss--Newton curvature makes the Allegro excursions 45--61\% cheaper per iteration.
+
+The following are suggestive but not established. The differences between V13, Gauss--Newton everywhere, and V14 on T-pushing (one or two instances out of 24--30) are within the run-to-run variation of single runs. The pen's improvement with Gauss--Newton in the excursions (11/12 versus 15/21 runs) favors it, but the counts are small and the pen is a single instance. The LPEC control rests on five plans.
+
+\paragraph{Limitations.} Most comparisons use a single run per instance, and the default GPU arithmetic is not deterministic. The pen is one instance. The success metric does not weight the pen's orientation, and one rescued pen plan ends with the pen flipped. On the jar task with clearance, the goal is reached on 5/5 instances but the clearance margin is kept on 2/5, as in PLF; clearance is not part of the stopping test. Two instances remain unsolved by V14 (PushT2dHard seed 4, PushT2dHardLong seed 0), although other runs solve both. Finally, coarsening only where the incumbent has no contact remains untested inside the interior-point method, which would require per-stage smoothing in the solver.
+
+%=====================================================================
+\section{Conclusion}
+%=====================================================================
+
+We proposed to manage the fidelity of a smoothed contact model in both directions during contact-implicit planning, with every plan judged by open-loop execution under the unsmoothed dynamics. Fidelity cycles re-open contact discovery from the best plan when the sharpest model is exhausted, with a trust-region rule in the space of models; excursions are judged by the response of the true dynamics, read out in closed loop, and use Gauss--Newton curvature; and an LPEC branch step frees the plans at which every smoothed model is stationary. The method solves T-pushing instances and an Allegro pen lift that the one-sided method does not, without changing its results elsewhere. In future work, we aim to coarsen the model only where the plan lacks contact inside the interior-point method, and to reduce the cost of the linearization, which now dominates an interior-point iteration on the Allegro tasks.
+
+\begin{thebibliography}{99}
+\small
+\bibitem{li2027lifted} \note{In-house reference used in the earlier write-up; full citation to be added.} Lifted multiple shooting for contact-implicit trajectory optimization (LMS, IP-PAS).
+\bibitem{posa2014direct} M.~Posa, C.~Cantu, and R.~Tedrake. A direct method for trajectory optimization of rigid bodies through contact. \emph{International Journal of Robotics Research}, 33(1):69--81, 2014.
+\bibitem{mordatch2012discovery} I.~Mordatch, E.~Todorov, and Z.~Popovi\'c. Discovery of complex behaviors through contact-invariant optimization. \emph{ACM Transactions on Graphics (SIGGRAPH)}, 31(4), 2012.
+\bibitem{suh2022bundled} H.~J.~T.~Suh, T.~Pang, and R.~Tedrake. Bundled gradients through contact via randomized smoothing. \emph{IEEE Robotics and Automation Letters}, 7(2):4000--4007, 2022.
+\bibitem{pang2023global} T.~Pang, H.~J.~T.~Suh, L.~Yang, and R.~Tedrake. Global planning for contact-rich manipulation via local smoothing of quasi-dynamic contact models. \emph{IEEE Transactions on Robotics}, 39(6):4691--4711, 2023.
+\bibitem{conn2000trust} A.~R.~Conn, N.~I.~M.~Gould, and P.~L.~Toint. \emph{Trust-Region Methods}. SIAM, 2000.
+\bibitem{alexandrov1998trust} N.~M.~Alexandrov, J.~E.~Dennis, R.~M.~Lewis, and V.~Torczon. A trust-region framework for managing the use of approximation models in optimization. \emph{Structural Optimization}, 15(1):16--23, 1998.
+\bibitem{peherstorfer2018survey} B.~Peherstorfer, K.~Willcox, and M.~Gunzburger. Survey of multifidelity methods in uncertainty propagation, inference, and optimization. \emph{SIAM Review}, 60(3):550--591, 2018.
+\bibitem{mastalli2020crocoddyl} C.~Mastalli et al. Crocoddyl: An efficient and versatile framework for multi-contact optimal control. In \emph{IEEE International Conference on Robotics and Automation (ICRA)}, 2020.
+\bibitem{giftthaler2018family} M.~Giftthaler, M.~Neunert, M.~St\"auble, J.~Buchli, and M.~Diehl. A family of iterative Gauss-Newton shooting methods for nonlinear optimal control. In \emph{IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 2018.
+\bibitem{luo1996mathematical} Z.-Q.~Luo, J.-S.~Pang, and D.~Ralph. \emph{Mathematical Programs with Equilibrium Constraints}. Cambridge University Press, 1996.
+\bibitem{scheel2000mathematical} H.~Scheel and S.~Scholtes. Mathematical programs with complementarity constraints: Stationarity, optimality, and sensitivity. \emph{Mathematics of Operations Research}, 25(1):1--22, 2000.
+\end{thebibliography}
+
+\end{document}
