@@ -1,0 +1,16 @@
+[queue] 00:54:27 start: GripperCubeLiftGraspedPS2 0:3 V15r pads.jsonl
+solved 0 / 0
+[queue] 00:58:53 done: GripperCubeLiftGraspedPS2 0:3 V15r pads.jsonl
+[queue] 00:58:53 start: GripperCubeLiftGrasped 0:3 V15rB pads.jsonl
+solved 0 / 0
+[queue] 00:59:48 done: GripperCubeLiftGrasped 0:3 V15rB pads.jsonl
+[queue] 00:59:48 start: GripperCubeLiftPregraspS2 0:3 V15r pads.jsonl
+solved 0 / 0
+[queue] 01:04:29 done: GripperCubeLiftPregraspS2 0:3 V15r pads.jsonl
+[queue] 01:04:29 start: GripperCubeLiftPregraspP 0:3 V15r pads.jsonl
+solved 0 / 0
+[queue] 01:09:55 done: GripperCubeLiftPregraspP 0:3 V15r pads.jsonl
+[queue] 01:09:55 start: GripperCubeLiftPregrasp 0:3 V15rB pads.jsonl
+solved 0 / 0
+[queue] 01:10:55 done: GripperCubeLiftPregrasp 0:3 V15rB pads.jsonl
+[queue] 01:10:55 start: GripperCubeLiftS2 0:3 V15r pads.jsonl

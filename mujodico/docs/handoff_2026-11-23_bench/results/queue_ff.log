@@ -1,0 +1,26 @@
+[ffm] 01:59:36 start: GripperCubeLift 0:3 V15LF03 (FFM=0.03)
+V15LF03 GripperCubeLift 0 miss 0.5606 exhausted cyc 6 its 2713 t 666.7
+V15LF03 GripperCubeLift 1 miss 0.5262 exhausted cyc 4 its 2135 t 323.7
+V15LF03 GripperCubeLift 2 miss 0.562 exhausted cyc 4 its 2091 t 323.7
+solved 0 / 3
+[ffm] 02:21:43 done: GripperCubeLift 0:3 V15LF03
+[ffm] 02:21:43 start: GripperCubeLift 0:3 V15LF05 (FFM=0.05)
+solved 0 / 0
+[ffm] 02:23:49 done: GripperCubeLift 0:3 V15LF05
+[ffm] 02:23:49 start: GripperCubeLift 0:3 V15LF10 (FFM=0.10)
+solved 0 / 0
+[ffm] 02:25:57 done: GripperCubeLift 0:3 V15LF10
+[ffm] 02:25:57 start: GripperCubeStack 0:2 V15LF03 (FFM=0.03)
+V15LF03 GripperCubeStack 0 miss 0.549 exhausted cyc 4 its 2223 t 860.8
+V15LF03 GripperCubeStack 1 miss 0.5198 exhausted cyc 4 its 434 t 102.6
+solved 0 / 2
+[ffm] 02:42:14 done: GripperCubeStack 0:2 V15LF03
+[ffm] 02:42:14 start: GripperCubeStack 0:2 V15LF05 (FFM=0.05)
+solved 0 / 0
+[ffm] 02:50:52 done: GripperCubeStack 0:2 V15LF05
+[ffm] 02:50:52 start: GripperCubeStack 0:2 V15LF10 (FFM=0.10)
+V15LF10 GripperCubeStack 0 miss 0.3686 exhausted cyc 10 its 1997 t 615.7
+V15LF10 GripperCubeStack 1 miss 0.3619 exhausted cyc 4 its 3852 t 835.3
+solved 0 / 2
+[ffm] 03:15:13 done: GripperCubeStack 0:2 V15LF10
+[ffm] ALLDONE

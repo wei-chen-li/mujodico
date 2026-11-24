@@ -1,0 +1,19 @@
+[queue] 01:29:24 start: GripperCubeLiftGrasped 0:3 V15j jaws.jsonl
+V15j GripperCubeLiftGrasped 0 OK   0.0012 done cyc 0 its 49 t 344.4
+V15j GripperCubeLiftGrasped 1 OK   0.0012 done cyc 0 its 49 t 4.3
+V15j GripperCubeLiftGrasped 2 OK   0.0008 done cyc 0 its 49 t 4.6
+solved 3 / 3
+[queue] 01:36:00 done: GripperCubeLiftGrasped 0:3 V15j jaws.jsonl
+[queue] 01:36:00 start: GripperCubeLiftPregrasp 0:3 V15j jaws.jsonl
+V15j GripperCubeLiftPregrasp 0 OK   0.0012 done cyc 0 its 86 t 246.4
+V15j GripperCubeLiftPregrasp 1 OK   0.0014 done cyc 0 its 86 t 12.6
+V15j GripperCubeLiftPregrasp 2 OK   0.0015 done cyc 0 its 84 t 8.5
+solved 3 / 3
+[queue] 01:41:01 done: GripperCubeLiftPregrasp 0:3 V15j jaws.jsonl
+[queue] 01:41:01 start: GripperCubeLift 0:3 V15j jaws.jsonl
+V15j GripperCubeLift 0 miss 0.5809 exhausted cyc 6 its 2300 t 645.7
+V15j GripperCubeLift 1 miss 0.5292 exhausted cyc 4 its 2196 t 187.5
+V15j GripperCubeLift 2 miss 0.5776 exhausted cyc 7 its 2116 t 239.2
+solved 0 / 3
+[queue] 01:59:08 done: GripperCubeLift 0:3 V15j jaws.jsonl
+[queue] ALLDONE

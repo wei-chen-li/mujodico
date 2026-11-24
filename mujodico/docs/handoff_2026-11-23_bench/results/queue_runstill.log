@@ -1,0 +1,26 @@
+[queue] 20:00:59 start: GripperCubeLiftGraspedStill 0:3 V15 cubelift_still.jsonl
+V15 GripperCubeLiftGraspedStill 0 miss 0.8149 exhausted cyc 6 its 677 t 140.2
+V15 GripperCubeLiftGraspedStill 1 miss 0.6402 exhausted cyc 4 its 2360 t 270.2
+V15 GripperCubeLiftGraspedStill 2 miss 0.0538 exhausted cyc 10 its 2458 t 213.4
+solved 0 / 3
+[queue] 20:11:31 done: GripperCubeLiftGraspedStill 0:3 V15 cubelift_still.jsonl
+[queue] 20:11:31 start: GripperCubeLiftPregraspStill 0:3 V15 cubelift_still.jsonl
+V15 GripperCubeLiftPregraspStill 0 miss 0.6407 exhausted cyc 4 its 3392 t 339.5
+V15 GripperCubeLiftPregraspStill 1 miss 0.0229 exhausted cyc 10 its 3481 t 255.2
+V15 GripperCubeLiftPregraspStill 2 miss 0.7239 exhausted cyc 4 its 432 t 40.4
+solved 0 / 3
+[queue] 20:22:15 done: GripperCubeLiftPregraspStill 0:3 V15 cubelift_still.jsonl
+[queue] 20:22:15 waiting: chain_lad timing window open
+[queue] 20:23:15 waiting: chain_lad timing window open
+[queue] 20:24:15 waiting: chain_lad timing window open
+[queue] 20:25:15 waiting: chain_lad timing window open
+[queue] 20:26:15 waiting: chain_lad timing window open
+[queue] 20:27:15 waiting: chain_lad timing window open
+[queue] 20:28:15 waiting: chain_lad timing window open
+[queue] 20:29:15 waiting: chain_lad timing window open
+[queue] 20:30:15 waiting: chain_lad timing window open
+[queue] 20:31:15 waiting: chain_lad timing window open
+[queue] 20:32:15 waiting: chain_lad timing window open
+[queue] 20:33:15 waiting: chain_lad timing window open
+[queue] 20:34:15 waiting: chain_lad timing window open
+[queue] 20:35:15 waiting: chain_lad timing window open

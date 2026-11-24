@@ -1,0 +1,4 @@
+GripperCubeLiftGraspedG 0:3 V15h diag_g.jsonl
+GripperCubeLiftPregraspG 0:3 V15h diag_g.jsonl
+GripperCubeLiftG 0:3 V15h diag_g.jsonl
+GripperCubeStackG 0:2 V15h diag_g.jsonl

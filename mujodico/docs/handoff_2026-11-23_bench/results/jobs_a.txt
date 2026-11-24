@@ -1,0 +1,6 @@
+AllegroEraserWipe 0:2 V15 tools_b.jsonl
+AllegroPenBoard 0:2 V15 tools_b.jsonl
+AllegroBrushSweep 0:2 V15 tools_b.jsonl
+AllegroHammer 0:2 V15 tools_a.jsonl
+AllegroScrewdriver 0:2 V15 tools_a.jsonl
+AllegroSpatulaFlip 0:2 V15 tools_a.jsonl

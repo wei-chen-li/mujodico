@@ -1,0 +1,3 @@
+GripperCubeStack 0:2 V15j jaws.jsonl
+GripperPegInsert 0:2 V15j jaws.jsonl
+GripperLegTwist 0:2 V15j jaws.jsonl

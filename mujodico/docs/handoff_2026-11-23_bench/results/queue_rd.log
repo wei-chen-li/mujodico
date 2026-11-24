@@ -1,0 +1,32 @@
+[queue] 22:08:46 start: GripperCubeLiftGrasped 0:3 V15r diag_r.jsonl
+/home/gchou/PycharmProjects/mujodico-main-dev/mujodico/docs/handoff_2026-11-23_bench/scripts/run_plfv.sh: line 15: txt: command not found
+V15r GripperCubeLiftGrasped 0 miss 0.0525 exhausted cyc 6 its 1894 t 292.8
+V15r GripperCubeLiftGrasped 1 miss 0.1164 exhausted cyc 10 its 2822 t 467.4
+V15r GripperCubeLiftGrasped 2 miss 0.1364 exhausted cyc 6 its 2638 t 427.7
+solved 0 / 3
+[queue] 22:28:49 done: GripperCubeLiftGrasped 0:3 V15r diag_r.jsonl
+[queue] 22:28:49 start: GripperCubeLiftPregrasp 0:3 V15r diag_r.jsonl
+V15r GripperCubeLiftPregrasp 0 miss 0.0266 exhausted cyc 10 its 3188 t 646.2
+V15r GripperCubeLiftPregrasp 1 miss 0.124 exhausted cyc 10 its 2916 t 451.3
+V15r GripperCubeLiftPregrasp 2 OK   0.0037 exhausted cyc 1 its 2532 t 444.3
+solved 1 / 3
+[queue] 22:54:42 done: GripperCubeLiftPregrasp 0:3 V15r diag_r.jsonl
+[queue] 22:54:42 start: GripperCubeLift 0:3 V15r diag_r.jsonl
+V15r GripperCubeLift 0 miss 0.5832 exhausted cyc 6 its 2707 t 703.5
+V15r GripperCubeLift 1 miss 0.569 exhausted cyc 4 its 2444 t 288.6
+V15r GripperCubeLift 2 miss 0.5523 exhausted cyc 5 its 2406 t 332.4
+solved 0 / 3
+[queue] 23:17:05 done: GripperCubeLift 0:3 V15r diag_r.jsonl
+[queue] 23:17:05 start: GripperCubeLiftGraspedG 0:3 V15r diag_r.jsonl
+V15r GripperCubeLiftGraspedG 0 miss 0.036 exhausted cyc 10 its 1688 t 291.9
+V15r GripperCubeLiftGraspedG 1 OK   0.0037 exhausted cyc 9 its 704 t 77.9
+V15r GripperCubeLiftGraspedG 2 miss 0.0134 exhausted cyc 10 its 1800 t 222.2
+solved 1 / 3
+[queue] 23:27:06 done: GripperCubeLiftGraspedG 0:3 V15r diag_r.jsonl
+[queue] 23:27:06 start: GripperCubeLiftPregraspG 0:3 V15r diag_r.jsonl
+V15r GripperCubeLiftPregraspG 0 miss 0.3073 exhausted cyc 7 its 930 t 181.6
+V15r GripperCubeLiftPregraspG 1 miss 0.6177 exhausted cyc 4 its 1855 t 181.6
+V15r GripperCubeLiftPregraspG 2 miss 0.1745 exhausted cyc 10 its 3316 t 301.0
+solved 0 / 3
+[queue] 23:38:22 done: GripperCubeLiftPregraspG 0:3 V15r diag_r.jsonl
+[queue] ALLDONE

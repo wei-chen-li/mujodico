@@ -1,0 +1,6 @@
+GripperCubeLiftPregrasp 0:3 V15T table.jsonl
+GripperDrawer 0:2 V15T table.jsonl
+GripperPegInsert 0:2 V15T table.jsonl
+GripperLegTwist 0:2 V15T table.jsonl
+GripperCubeLiftLong 0:3 V15T table.jsonl
+GripperCubeStack 0:2 V15T table.jsonl

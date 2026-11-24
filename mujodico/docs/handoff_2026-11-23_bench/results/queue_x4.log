@@ -1,0 +1,7 @@
+[queue] 23:39:05 start: GripperCubeLiftGrasped 0:3 V15rX4 diag_x.jsonl
+V15rX4 GripperCubeLiftGrasped 0 miss 0.5868 exhausted cyc 0 its 121 t 74.7
+V15rX4 GripperCubeLiftGrasped 1 miss 0.5998 exhausted cyc 0 its 104 t 54.5
+V15rX4 GripperCubeLiftGrasped 2 miss 0.5998 exhausted cyc 0 its 127 t 57.3
+solved 0 / 3
+[queue] 23:42:25 done: GripperCubeLiftGrasped 0:3 V15rX4 diag_x.jsonl
+[queue] ALLDONE

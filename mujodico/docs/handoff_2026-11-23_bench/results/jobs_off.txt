@@ -1,0 +1,6 @@
+GripperCubeLiftPregraspX2 0:2 V15j off.jsonl
+GripperCubeLiftPregraspYaw3 0:2 V15j off.jsonl
+GripperCubeLiftPregraspX2Yaw3 0:2 V15j off.jsonl
+GripperCubeLiftPregraspZ5 0:2 V15j off.jsonl
+GripperCubeLift 0:3 V15LF05 ffm_redo.jsonl
+GripperCubeLift 0:3 V15LF10 ffm_redo.jsonl

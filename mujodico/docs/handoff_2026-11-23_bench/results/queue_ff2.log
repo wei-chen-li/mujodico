@@ -1,0 +1,13 @@
+[ffm] 03:29:32 start: GripperCubeLift 0:3 V15LF05 (FFM=0.05)
+V15LF05 GripperCubeLift 0 miss 0.5271 exhausted cyc 5 its 2155 t 331.1
+V15LF05 GripperCubeLift 1 miss 0.566 exhausted cyc 4 its 2299 t 342.7
+V15LF05 GripperCubeLift 2 miss 0.5482 exhausted cyc 5 its 2457 t 348.8
+solved 0 / 3
+[ffm] 03:46:44 done: GripperCubeLift 0:3 V15LF05
+[ffm] 03:46:44 start: GripperCubeLift 0:3 V15LF10 (FFM=0.10)
+V15LF10 GripperCubeLift 0 miss 0.5449 exhausted cyc 4 its 2168 t 417.2
+V15LF10 GripperCubeLift 1 miss 0.5231 exhausted cyc 4 its 3657 t 510.8
+V15LF10 GripperCubeLift 2 miss 0.5708 exhausted cyc 4 its 738 t 95.5
+solved 0 / 3
+[ffm] 04:04:00 done: GripperCubeLift 0:3 V15LF10
+[ffm] ALLDONE

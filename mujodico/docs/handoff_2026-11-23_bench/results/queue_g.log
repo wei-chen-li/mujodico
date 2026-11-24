@@ -1,0 +1,13 @@
+[queue] 20:40:23 start: GripperCubeLiftPregraspStill 0:3 V15 cubelift_still.jsonl
+V15 GripperCubeLiftPregraspStill 0 miss 0.6503 exhausted cyc 7 its 1333 t 174.1
+V15 GripperCubeLiftPregraspStill 1 miss 0.6527 exhausted cyc 8 its 1212 t 115.7
+V15 GripperCubeLiftPregraspStill 2 miss 0.1134 exhausted cyc 10 its 2796 t 162.1
+solved 0 / 3
+[queue] 20:48:08 done: GripperCubeLiftPregraspStill 0:3 V15 cubelift_still.jsonl
+[queue] 20:48:08 start: GripperCubeLiftStill 0:3 V15 cubelift_still.jsonl
+V15 GripperCubeLiftStill 0 miss 0.6313 exhausted cyc 4 its 2006 t 352.6
+V15 GripperCubeLiftStill 1 miss 0.5895 exhausted cyc 4 its 2719 t 199.9
+V15 GripperCubeLiftStill 2 miss 0.6153 exhausted cyc 4 its 794 t 60.4
+solved 0 / 3
+[queue] 20:58:39 done: GripperCubeLiftStill 0:3 V15 cubelift_still.jsonl
+[queue] 20:58:39 start: GripperPegInsert 0:2 V15 gripper.jsonl

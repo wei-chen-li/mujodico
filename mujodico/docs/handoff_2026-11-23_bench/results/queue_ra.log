@@ -1,0 +1,18 @@
+[queue] 22:08:46 start: AllegroEraserWipe 0:2 V15r bench_r.jsonl
+/home/gchou/PycharmProjects/mujodico-main-dev/mujodico/docs/handoff_2026-11-23_bench/scripts/run_plfv.sh: line 15: txt: command not found
+V15r AllegroEraserWipe 0 miss 0.0614 exhausted cyc 10 its 1091 t 1525.2
+V15r AllegroEraserWipe 1 miss 0.18 exhausted cyc 4 its 563 t 608.6
+solved 0 / 2
+[queue] 22:44:36 done: AllegroEraserWipe 0:2 V15r bench_r.jsonl
+[queue] 22:44:36 start: AllegroPenBoard 0:2 V15r bench_r.jsonl
+solved 0 / 0
+[queue] 23:05:49 done: AllegroPenBoard 0:2 V15r bench_r.jsonl
+[queue] 23:05:49 start: AllegroHammer 0:2 V15r bench_r.jsonl
+solved 0 / 0
+[queue] 23:06:29 done: AllegroHammer 0:2 V15r bench_r.jsonl
+[queue] 23:06:29 start: AllegroBrushSweep 0:2 V15r bench_r.jsonl
+V15r AllegroBrushSweep 0 miss 0.2797 exhausted cyc 10 its 996 t 1740.6
+V15r AllegroBrushSweep 1 miss 0.1731 exhausted cyc 10 its 4589 t 7794.8
+solved 0 / 2
+[queue] 01:46:11 done: AllegroBrushSweep 0:2 V15r bench_r.jsonl
+[queue] 01:46:11 start: AllegroScrewdriver 0:2 V15r bench_r.jsonl

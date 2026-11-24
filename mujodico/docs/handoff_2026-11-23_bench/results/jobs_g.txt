@@ -1,0 +1,5 @@
+GripperCubeLiftPregraspStill 0:3 V15 cubelift_still.jsonl
+GripperCubeLiftStill 0:3 V15 cubelift_still.jsonl
+GripperPegInsert 0:2 V15 gripper.jsonl
+GripperDrawer 0:2 V15 gripper.jsonl
+GripperLegTwist 0:2 V15 gripper.jsonl

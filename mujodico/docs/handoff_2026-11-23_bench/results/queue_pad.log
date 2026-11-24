@@ -1,0 +1,13 @@
+[queue] 23:59:16 start: GripperCubeLiftGraspedS2 0:3 V15r pads.jsonl
+V15r GripperCubeLiftGraspedS2 0 miss 0.032 exhausted cyc 10 its 2362 t 608.5
+V15r GripperCubeLiftGraspedS2 1 miss 0.0174 exhausted cyc 10 its 2725 t 288.4
+V15r GripperCubeLiftGraspedS2 2 miss 0.0822 exhausted cyc 8 its 2870 t 331.4
+solved 0 / 3
+[queue] 00:20:09 done: GripperCubeLiftGraspedS2 0:3 V15r pads.jsonl
+[queue] 00:20:09 start: GripperCubeLiftGraspedS4 0:3 V15r pads.jsonl
+V15r GripperCubeLiftGraspedS4 0 miss 0.1117 exhausted cyc 10 its 2997 t 974.2
+V15r GripperCubeLiftGraspedS4 1 miss 0.1596 exhausted cyc 10 its 1066 t 182.6
+V15r GripperCubeLiftGraspedS4 2 miss 0.1992 exhausted cyc 10 its 2188 t 328.8
+solved 0 / 3
+[queue] 00:45:17 done: GripperCubeLiftGraspedS4 0:3 V15r pads.jsonl
+[queue] 00:45:17 start: GripperCubeLiftGraspedP 0:3 V15r pads.jsonl

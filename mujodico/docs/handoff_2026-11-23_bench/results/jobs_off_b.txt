@@ -1,0 +1,2 @@
+GripperCubeLift 0:3 V15LF05 ffm_redo.jsonl
+GripperCubeLift 0:3 V15LF10 ffm_redo.jsonl

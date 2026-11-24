@@ -1,0 +1,6 @@
+AllegroHammer 0:2 V15h bench_h.jsonl
+AllegroEraserWipe 0:2 V15h bench_h.jsonl
+AllegroPenBoard 0:2 V15h bench_h.jsonl
+AllegroBrushSweep 0:2 V15h bench_h.jsonl
+AllegroScrewdriver 0:2 V15h bench_h.jsonl
+AllegroSpatulaFlip 0:2 V15h bench_h.jsonl

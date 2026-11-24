@@ -1,0 +1,25 @@
+[queue] 22:08:46 start: GripperCubeStack 0:2 V15r bench_r.jsonl
+V15r GripperCubeStack 0 miss 1.1233 exhausted cyc 10 its 844 t 505.4
+V15r GripperCubeStack 1 miss 0.6707 exhausted cyc 5 its 624 t 218.5
+solved 0 / 2
+[queue] 22:21:08 done: GripperCubeStack 0:2 V15r bench_r.jsonl
+[queue] 22:21:08 start: GripperPegInsert 0:2 V15r bench_r.jsonl
+/home/gchou/PycharmProjects/mujodico-main-dev/mujodico/docs/handoff_2026-11-23_bench/scripts/run_plfv.sh: line 15: txt: command not found
+V15r GripperPegInsert 0 miss 1.1704 exhausted cyc 6 its 677 t 846.3
+V15r GripperPegInsert 1 miss 1.16 exhausted cyc 4 its 1196 t 485.4
+solved 0 / 2
+[queue] 22:44:46 done: GripperPegInsert 0:2 V15r bench_r.jsonl
+[queue] 22:44:46 start: GripperDrawer 0:2 V15r bench_r.jsonl
+solved 0 / 0
+[queue] 22:51:52 done: GripperDrawer 0:2 V15r bench_r.jsonl
+[queue] 22:51:52 start: GripperLegTwist 0:2 V15r bench_r.jsonl
+V15r GripperLegTwist 0 miss 3.085 exhausted cyc 7 its 719 t 845.3
+V15r GripperLegTwist 1 miss 3.1856 exhausted cyc 4 its 604 t 161.6
+solved 0 / 2
+[queue] 23:09:54 done: GripperLegTwist 0:2 V15r bench_r.jsonl
+[queue] 23:09:54 start: GripperDrawer 0:2 V15r bench_r.jsonl
+V15r GripperDrawer 0 miss 2.0797 exhausted cyc 5 its 523 t 367.3
+V15r GripperDrawer 1 miss 2.267 exhausted cyc 10 its 882 t 221.5
+solved 0 / 2
+[queue] 23:20:05 done: GripperDrawer 0:2 V15r bench_r.jsonl
+[queue] ALLDONE

@@ -1,0 +1,77 @@
+<title>Eraser Wipe Plans</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: one reading column, two plan cards side by side that stack on phones */
+:root {
+  --bg: #f6f7f5; --fg: #1d2420; --muted: #5d6862; --line: #d9ded9; --card: #ffffff;
+  --warn: #9a3412; --warn-bg: #fdeee6; --ok: #166534;
+  --f-head: "Space Grotesk", system-ui, sans-serif; --f-body: "Inter", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141816; --fg: #e5ebe7; --muted: #9aa6a0; --line: #2c3531; --card: #1b201d;
+  --warn: #fdba8c; --warn-bg: #3a2117; --ok: #86efac; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141816; --fg: #e5ebe7; --muted: #9aa6a0; --line: #2c3531; --card: #1b201d;
+  --warn: #fdba8c; --warn-bg: #3a2117; --ok: #86efac; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); line-height: 1.55; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; }
+h1 { font-family: var(--f-head); font-size: 1.7rem; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 70ch; margin: 4px 0 0; }
+.warn { background: var(--warn-bg); color: var(--fg); border-left: 4px solid var(--warn); padding: 12px 16px; border-radius: 4px; max-width: 80ch; }
+.warn b { color: var(--warn); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+figure img { width: 100%; height: auto; border-radius: 3px; }
+.cap-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; font-family: var(--f-head); font-weight: 600; }
+.metric { font-family: var(--f-mono); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.metric.ok { color: var(--ok); } .metric.miss { color: var(--warn); }
+figcaption p { margin: 0; color: var(--muted); font-size: .92rem; }
+table { border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.tbl { overflow-x: auto; }
+th, td { text-align: left; padding: 5px 12px 5px 0; border-bottom: 1px solid var(--line); }
+th { font-family: var(--f-head); font-weight: 600; color: var(--muted); font-size: .8rem; letter-spacing: .03em; text-transform: uppercase; }
+td.mono { font-family: var(--f-mono); }
+h2 { font-family: var(--f-head); font-size: 1.1rem; margin: 0; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono&family=Space+Grotesk:wght@500;600&display=swap">
+
+<div class="wrap">
+  <header>
+    <h1>AllegroEraserWipe: PLF-V plans under the true law</h1>
+    <p class="lede">Each plan is replayed in the true contact law. The task counts as done when all six ink pins are pushed flush; success means a metric below 0.01. Left panel: visual geometry. Right panel: collision geometry and contact points (red), from a second view.</p>
+  </header>
+
+  <div class="warn"><b>This is not a real solve.</b> In both seeds the hand tosses the eraser. It tumbles across the pins and pushes them down (contacts at steps 20–36), then lands upside down. At rest only its three small feet touch the table, and the handle and felt block hang 25 mm inside the tabletop. The task gives the eraser table contact only through feet placed for its starting orientation, so a flipped eraser can sink through. The scripted check never released the eraser, so it didn't catch this.</div>
+
+  <div class="grid">
+    <figure>
+      <img src="solved_s1.gif" alt="Seed 1: the hand flicks the eraser onto the pin board; it tumbles over the pins and ends upside down, sunk into the table.">
+      <figcaption>
+        <div class="cap-h"><span>Seed 1</span><span class="metric ok">metric 0.0070 · counted as solved</span></div>
+        <p>Final pin depths (mm, flush = −10): −8.0, −10, −10, −7.1, −9.7, −6.7. Eraser at rest from t = 1.6 s; the remaining 3 s of hand motion does nothing.</p>
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="solved_s0.gif" alt="Seed 0: same toss strategy; five pins flush, one untouched.">
+      <figcaption>
+        <div class="cap-h"><span>Seed 0</span><span class="metric miss">metric 0.030 · miss</span></div>
+        <p>Same toss. Five pins flush, pin 5 untouched (0 mm). The eraser ends upside down and sunk into the table the same way.</p>
+      </figcaption>
+    </figure>
+  </div>
+
+  <section style="display:grid;gap:8px">
+    <h2>Where the solve time went (seed 1, 3684 s total)</h2>
+    <div class="tbl"><table>
+      <tr><th>Phase</th><th>Seconds</th><th>Note</th></tr>
+      <tr><td>DDP backward pass</td><td class="mono">2190</td><td>2860 passes at ~765 ms each; 22 ms each once OpenBLAS is limited to one thread</td></tr>
+      <tr><td>Lifted IP</td><td class="mono">826</td><td>1772 iterations</td></tr>
+      <tr><td>True-law read-outs</td><td class="mono">374</td><td>CPU</td></tr>
+      <tr><td>Line search</td><td class="mono">343</td><td>CPU, parallel step sizes</td></tr>
+      <tr><td>Linearization</td><td class="mono">183</td><td>GPU</td></tr>
+    </table></div>
+  </section>
+</div>

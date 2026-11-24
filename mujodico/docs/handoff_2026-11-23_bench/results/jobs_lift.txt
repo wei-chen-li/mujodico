@@ -1,0 +1,3 @@
+GripperCubeLift 0:3 V15 cubelift.jsonl
+GripperCubeLiftGrasped 0:3 V15 cubelift.jsonl
+GripperCubeLiftPregrasp 0:3 V15 cubelift.jsonl

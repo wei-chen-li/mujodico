@@ -1,0 +1,6 @@
+[queue] 01:29:24 start: GripperCubeStack 0:2 V15j jaws.jsonl
+V15j GripperCubeStack 0 miss 0.4141 exhausted cyc 9 its 1033 t 589.1
+V15j GripperCubeStack 1 miss 0.4206 exhausted cyc 7 its 2245 t 499.4
+solved 0 / 2
+[queue] 01:48:07 done: GripperCubeStack 0:2 V15j jaws.jsonl
+[queue] 01:48:07 start: GripperPegInsert 0:2 V15j jaws.jsonl

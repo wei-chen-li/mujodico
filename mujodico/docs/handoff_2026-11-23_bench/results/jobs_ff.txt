@@ -1,0 +1,6 @@
+GripperCubeLift 0:3 V15LF03 ffm.jsonl
+GripperCubeLift 0:3 V15LF05 ffm.jsonl
+GripperCubeLift 0:3 V15LF10 ffm.jsonl
+GripperCubeStack 0:2 V15LF03 ffm.jsonl
+GripperCubeStack 0:2 V15LF05 ffm.jsonl
+GripperCubeStack 0:2 V15LF10 ffm.jsonl

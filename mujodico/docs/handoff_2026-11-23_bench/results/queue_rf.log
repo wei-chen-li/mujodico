@@ -1,0 +1,4 @@
+[queue] 22:28:20 start: GripperCubeLiftPregrasp 0:3 V15rF5 diag_rf.jsonl
+solved 0 / 0
+[queue] 22:41:47 done: GripperCubeLiftPregrasp 0:3 V15rF5 diag_rf.jsonl
+[queue] 22:41:47 start: GripperCubeLiftGrasped 0:3 V15rF5 diag_rf.jsonl

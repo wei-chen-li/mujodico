@@ -1,0 +1,31 @@
+[queue] 01:51:34 start: GripperCubeLiftGrasped 0:3 V15L full.jsonl
+V15L GripperCubeLiftGrasped 0 OK   0.0016 done cyc 0 its 47 t 230.6
+V15L GripperCubeLiftGrasped 1 OK   0.0008 done cyc 0 its 49 t 3.2
+V15L GripperCubeLiftGrasped 2 OK   0.0016 done cyc 0 its 47 t 3.0
+solved 3 / 3
+[queue] 01:56:00 done: GripperCubeLiftGrasped 0:3 V15L full.jsonl
+[queue] 01:56:00 start: GripperCubeLiftPregrasp 0:3 V15L full.jsonl
+V15L GripperCubeLiftPregrasp 0 OK   0.0011 done cyc 0 its 84 t 161.0
+V15L GripperCubeLiftPregrasp 1 OK   0.0026 done cyc 0 its 88 t 3.8
+V15L GripperCubeLiftPregrasp 2 OK   0.002 done cyc 0 its 84 t 3.7
+solved 3 / 3
+[queue] 01:59:15 done: GripperCubeLiftPregrasp 0:3 V15L full.jsonl
+[queue] 01:59:15 start: GripperCubeLift 0:3 V15L full.jsonl
+V15L GripperCubeLift 0 miss 0.5778 exhausted cyc 6 its 2206 t 1267.8
+V15L GripperCubeLift 1 miss 0.5273 exhausted cyc 4 its 2163 t 222.4
+V15L GripperCubeLift 2 miss 0.5786 exhausted cyc 5 its 2219 t 173.2
+solved 0 / 3
+[queue] 02:27:18 done: GripperCubeLift 0:3 V15L full.jsonl
+[queue] 02:27:18 start: GripperCubeStack 0:2 V15L full.jsonl
+solved 0 / 0
+[queue] 02:30:14 done: GripperCubeStack 0:2 V15L full.jsonl
+[queue] 02:30:14 start: GripperPegInsert 0:2 V15L full.jsonl
+solved 0 / 0
+[queue] 02:35:30 done: GripperPegInsert 0:2 V15L full.jsonl
+[queue] 02:35:30 start: GripperLegTwist 0:2 V15L full.jsonl
+solved 0 / 0
+[queue] 02:40:55 done: GripperLegTwist 0:2 V15L full.jsonl
+[queue] 02:40:55 start: GripperDrawer 0:2 V15L full.jsonl
+solved 0 / 0
+[queue] 02:47:31 done: GripperDrawer 0:2 V15L full.jsonl
+[queue] ALLDONE

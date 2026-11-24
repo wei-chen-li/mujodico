@@ -1,0 +1,9 @@
+[queue] 04:14:09 start: GripperCubeLiftLong 0:3 V15jF10 long.jsonl
+solved 0 / 0
+[queue] 04:16:35 done: GripperCubeLiftLong 0:3 V15jF10 long.jsonl
+[queue] 04:16:35 start: GripperCubeStackLong 0:2 V15jF10 long.jsonl
+V15jF10 GripperCubeStackLong 0 miss 0.4324 exhausted cyc 8 its 2939 t 691.6
+V15jF10 GripperCubeStackLong 1 miss 0.3814 exhausted cyc 4 its 4020 t 558.6
+solved 0 / 2
+[queue] 04:37:37 done: GripperCubeStackLong 0:2 V15jF10 long.jsonl
+[queue] ALLDONE

@@ -1,0 +1,6 @@
+AllegroEraserWipe 0:2 V15T table.jsonl
+AllegroHammer 0:2 V15T table.jsonl
+AllegroBrushSweep 0:2 V15T table.jsonl
+AllegroPenBoard 0:2 V15T table.jsonl
+AllegroScrewdriver 0:2 V15T table.jsonl
+AllegroSpatulaFlip 0:2 V15T table.jsonl

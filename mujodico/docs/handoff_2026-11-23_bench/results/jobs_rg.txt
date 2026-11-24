@@ -1,0 +1,5 @@
+GripperCubeStack 0:2 V15r bench_r.jsonl
+GripperPegInsert 0:2 V15r bench_r.jsonl
+GripperDrawer 0:2 V15r bench_r.jsonl
+GripperLegTwist 0:2 V15r bench_r.jsonl
+GripperDrawer 0:2 V15r bench_r.jsonl

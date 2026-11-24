@@ -1,0 +1,256 @@
+<title>Tool-Use Benchmark Witnesses</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: review sheet. Short key up top, then two groups (one per paper) of task cards, two per row on desktop. */
+:root {
+  --bg: #f4f5f3;
+  --card: #ffffff;
+  --fg: #1d2220;
+  --muted: #5b6460;
+  --line: #d9ddd8;
+  --accent: #2f7d57;      /* goal-ghost green */
+  --flag: #a6541c;        /* plausibility flag */
+  --flag-bg: #fbf0e7;
+  --contact: #c62828;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151917; --card: #1d2320; --fg: #e3e8e4; --muted: #9aa49f; --line: #333b37;
+    --accent: #5cc08d; --flag: #e39a63; --flag-bg: #2c2219; --contact: #ef6b6b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151917; --card: #1d2320; --fg: #e3e8e4; --muted: #9aa49f; --line: #333b37;
+  --accent: #5cc08d; --flag: #e39a63; --flag-bg: #2c2219; --contact: #ef6b6b; color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 1.7rem; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; font-weight: 600; margin: 0; text-wrap: balance; }
+.lede { max-width: 72ch; margin: 6px 0 0; color: var(--muted); }
+.key { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 28px; max-width: 1100px;
+       border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: 14px; }
+.key div { min-width: 0; }
+.key b { font-weight: 600; }
+.swatch { display: inline-block; width: 0.8em; height: 0.8em; border-radius: 2px; vertical-align: -0.05em; margin-right: 6px; }
+.group { display: flex; flex-direction: column; gap: 14px; }
+.group-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.group-head span { color: var(--muted); font-size: 0.92rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 560px), 1fr)); gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.card img { display: block; width: 100%; height: auto; background: #000; aspect-ratio: 684 / 340; }
+.body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.title h3 { margin: 0; font-size: 1.02rem; font-weight: 600; font-family: var(--font-mono); letter-spacing: -0.01em; word-break: break-word; }
+.meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.paper { font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+p { margin: 0; }
+.watch { color: var(--fg); }
+.flags { list-style: none; margin: 0; padding: 9px 12px; background: var(--flag-bg); border-radius: 4px; display: flex; flex-direction: column; gap: 5px; font-size: 0.9rem; }
+.flags li { padding-left: 1.1em; position: relative; }
+.flags li::before { content: "!"; position: absolute; left: 0; color: var(--flag); font-weight: 600; font-family: var(--font-mono); }
+.flags-label { font-size: 0.78rem; color: var(--flag); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.common { max-width: 80ch; color: var(--muted); font-size: 0.92rem; border-top: 1px solid var(--line); padding-top: 14px; }
+.common ul { margin: 6px 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+code { font-family: var(--font-mono); font-size: 0.88em; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Scripted witnesses for the hard-task benchmark</h1>
+    <p class="lede">Each task has a hand-scripted, open-loop control sequence that reaches the goal under the solver's true contact law (MJX Hunt-Crossley SAP, smoothing 0). These are those rollouts for seed 0, replayed in real time. They exist only to show the tasks are physically solvable; no solver output appears here. Error is the success metric at the final step (success &lt; 0.01).</p>
+  </header>
+
+  <section class="key" aria-label="How to read the GIFs">
+    <div><b>Left panel:</b> visual geometry, the way the scene looks.</div>
+    <div><b>Right panel:</b> collision geometry only, from a second camera angle. This is what the contact law sees. Hidden helper spheres are shown in yellow.</div>
+    <div><span class="swatch" style="background: var(--contact)"></span><b>Red dots:</b> contact points (MuJoCo's collision detection on the same states).</div>
+    <div><span class="swatch" style="background: var(--accent)"></span><b>Green ghost:</b> the goal pose of whatever the cost scores.</div>
+  </section>
+
+  <section class="group">
+    <div class="group-head"><h2>Assembly with a parallel gripper</h2><span>OmniReset (arXiv 2603.15789): UR7e + Robotiq 2F-85, here a floating gripper on a 6-DoF wrist, dt 0.05 s</span></div>
+    <div class="grid">
+
+      <article class="card">
+        <img src="gifs/GripperCubeStack_s0.gif" alt="Gripper picks the red cube and stacks it on the blue cube rotated 90 degrees" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>GripperCubeStack</h3><span class="meta">4.5 s · error 1.8e-6 · start 5.3</span></div>
+          <p class="paper">Cube stacking</p>
+          <p class="watch">Grasp red cube A (5 cm, 100 g), lift, rotate the wrist, set A on blue B turned 90&deg;, open. Watch the pads stop at the cube faces and A sit flat on B.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>Pads do not collide with the table or with cube B. A wrist-height floor keeps upright pads above the table instead.</li>
+            <li>Cubes touch the table and each other through 4 bottom corner spheres only.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/GripperCubeLift_s0.gif" alt="Gripper grasps the red cube and lifts it 8 centimetres" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>GripperCubeLift</h3><span class="meta">2.5 s · error 1.2e-4 · start 0.64</span></div>
+          <p class="paper">Diagnostic rung below cube stacking</p>
+          <p class="watch">Same scene: grasp cube A and lift it 8 cm straight up. Added to test whether the solver can grasp and lift at all.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/GripperPegInsert_s0.gif" alt="Gripper grasps a lying square peg, rotates it upright and inserts it into a hole" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>GripperPegInsert</h3><span class="meta">4.5 s · error 2.0e-4 · start 7.2</span></div>
+          <p class="paper">Peg insertion</p>
+          <p class="watch">A 3&times;3&times;12 cm, 60 g peg lies on its side. Grasp near one end, roll the wrist 90&deg;, insert 4.5 cm. Clearance is 3 mm at the face centres and about 4.5 mm on the diagonals.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The hole walls are two rings of 4 spheres; the block between them has no collision.</li>
+            <li>The lying peg rests on two end spheres, so on the table it rolls like a cylinder.</li>
+            <li>The peg can spin about &plusmn;23&deg; in the hole.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/GripperDrawer_s0.gif" alt="Gripper turns a drawer upright and pushes it into a cabinet slot" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>GripperDrawer</h3><span class="meta">6.0 s · error 1.7e-3 · start 12.4</span></div>
+          <p class="paper">Drawer insertion</p>
+          <p class="watch">A 7&times;6&times;4 cm drawer lies on its side. Grasp it by the end faces, turn it upright, set it in front of the slot, then push it in with both pads. Clearance is 4 mm per side.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The pads pass through the cabinet walls (no pad-cabinet contact), so a solver could carry the drawer straight in.</li>
+            <li>The drawer is dropped from about 1.5 cm, because horizontal pads cannot go below the wrist floor.</li>
+            <li>The cabinet is 6 spheres (mouth, back, back stop, ceiling).</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/GripperLegTwist_s0.gif" alt="Gripper inserts a table leg into a socket and twists it 90 degrees" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>GripperLegTwist</h3><span class="meta">6.0 s · error 1.5e-3 · start 11.0</span></div>
+          <p class="paper">Table-leg twisting</p>
+          <p class="watch">Pick up the 14 cm leg, insert its round stud into the socket, then twist by circling the wrist around the leg axis. A key pin on the leg drives a nut (hinge) between two dog pins to +90&deg;.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>There is no thread advance; the nut turns but does not descend. It holds its angle by viscous damping only.</li>
+            <li>The key pin passes through the socket's ring spheres (the gaps act as the keyway).</li>
+          </ul>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="group">
+    <div class="group-head"><h2>Tool use with an Allegro hand</h2><span>SimToolReal (RSS 2026): iiwa + Sharpa hand, here an Allegro on a 6-DoF wrist, dt 0.04 s</span></div>
+    <div class="grid">
+
+      <article class="card">
+        <img src="gifs/AllegroHammer_s0.gif" alt="Allegro hand picks up a hammer and drives a nail" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroHammer</h3><span class="meta">6.0 s · error 2.6e-9 · start 0.16</span></div>
+          <p class="paper">Hammering a nail</p>
+          <p class="watch">Pinch the handle near its balance point, lift, correct for the hammer's roll in the grasp, then press the head on the nail to drive it 2 cm. The nail is a slide joint with 4 N of dry friction.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The script presses rather than swings. At dt 0.04 s an impact is spread over a full step, so a swing transfers little impulse.</li>
+            <li>The nail block is visual only. The nail goes 2 cm below the block's top face, so in the left panel the head ends up inside the block.</li>
+            <li>The handle rests propped up by a knob, so no in-hand rotation is needed. The fingertips can pass through the head.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/AllegroScrewdriver_s0.gif" alt="Allegro hand turns a screwdriver upright, inserts the blade in a slot and twists" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroScrewdriver</h3><span class="meta">6.0 s · error 9.5e-4 · start 2.47</span></div>
+          <p class="paper">Turning a screwdriver</p>
+          <p class="watch">Lift, roll the wrist 90&deg; so the blade points down, insert it between two posts on the screw head, twist the screw (a hinge with dry friction) by &pi;/2.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The slot drives one way only, and the slot direction was chosen so the twist fits the wrist range without a regrasp.</li>
+            <li>This was the hardest to certify: fast wrist rotations make the tool creep out of the pinch, so the script rotates slowly with drift corrections.</li>
+            <li>The blade can sink below the posts (no blade-head contact).</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/AllegroSpatulaFlip_s0.gif" alt="Allegro hand slides a spatula under toast and flips it over" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroSpatulaFlip</h3><span class="meta">6.0 s · error 1.7e-3 · start 1.79</span></div>
+          <p class="paper">Spatula toast flip</p>
+          <p class="watch">Lay the blade flat behind the toast, slide under its crust edge, tilt up while keeping the blade under it, push on until the toast falls over onto its top face.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The toast collides only through 4 spheres. The blade can touch only one raised crust sphere and passes through the toast's underside elsewhere.</li>
+            <li>The goal assumes an ideal roll-over (8.9 cm along +x, upside down).</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/AllegroPenBoard_s0.gif" alt="Allegro hand turns a marker upright and presses five pins in an L shape" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroPenBoard</h3><span class="meta">6.0 s · error 1.6e-5 · start 0.22</span></div>
+          <p class="paper">Reorient a pen and write a letter</p>
+          <p class="watch">The solver only accepts a fixed final goal, so the ink is physical: 5 push-pins in an "L" that stay down once pressed. Roll the pen upright in the pinch, then dab each pin flush.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The pen is a thick marker (radius 16 mm) with inflated rotational inertia; a 12 mm pen squirted out of the pinch.</li>
+            <li>Pins are gravity-compensated and damped, with no spring. The pen tip passes through the table.</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/AllegroBrushSweep_s0.gif" alt="Allegro hand rolls a brush bristles-down and sweeps two crumbs into a pan" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroBrushSweep</h3><span class="meta">5.2 s · error 2.0e-3 · start 1.50</span></div>
+          <p class="paper">Sweep debris into a dustpan</p>
+          <p class="watch">The brush starts with its bristles sideways. Roll it bristles-down (about 60&deg; at the wrist, about 30&deg; inside the pinch), then sweep two crumbs against the pan's back wall.</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>The crumbs slide on x/y joints at a fixed height with damping (no rolling, no table contact).</li>
+            <li>The pan is only its back wall, and the brush passes through it. The brush is light (28 g).</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card">
+        <img src="gifs/AllegroEraserWipe_s0.gif" alt="Allegro hand rolls an eraser felt-down and presses a grid of pins flush" loading="lazy">
+        <div class="body">
+          <div class="title"><h3>AllegroEraserWipe</h3><span class="meta">4.8 s · error 1.1e-5 · start 0.18</span></div>
+          <p class="paper">Erase a whiteboard</p>
+          <p class="watch">The ink is a 2&times;3 grid of raised pins. Roll the eraser about 90&deg; so the felt faces down, then press the pins flush in two placements (the felt covers one column at a time).</p>
+          <span class="flags-label">Check</span>
+          <ul class="flags">
+            <li>A handle bar was added to the eraser; a bare box cannot be pinched palm-down and rolled 90&deg;.</li>
+            <li>The middle finger passes through the eraser (left out to stay within the contact budget). The felt passes through the table.</li>
+          </ul>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section class="common">
+    <b>Applies to every task</b>
+    <ul>
+      <li>The hand or gripper is filtered out of contact with the target (nail, screw, toast, crumbs, pins), so only the tool can move it.</li>
+      <li>Fingertips have spheres that collide with the table; the other finger links, the palm and the tools are not checked against fixtures.</li>
+      <li>Each task is limited to 16 contacts (solver GPU memory grows with contact count), so contacts that rarely matter were replaced by joint ranges or dropped. Each task's docstring in <code>docs/handoff_2026-11-23_bench/scripts</code> lists them.</li>
+      <li>Grasped tools roll slowly inside the pinch under the true law; the scripts correct for it with a grasp offset measured once.</li>
+    </ul>
+  </section>
+</div>

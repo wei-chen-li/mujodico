@@ -1,0 +1,21 @@
+[queue] 04:04:10 start: GripperCubeStack 0:2 V15L full.jsonl
+V15L GripperCubeStack 0 miss 0.4782 exhausted cyc 7 its 4592 t 1013.1
+V15L GripperCubeStack 1 miss 0.5465 exhausted cyc 8 its 2289 t 399.8
+solved 0 / 2
+[queue] 04:27:58 done: GripperCubeStack 0:2 V15L full.jsonl
+[queue] 04:27:58 start: GripperPegInsert 0:2 V15L full.jsonl
+V15L GripperPegInsert 0 miss 1.0508 exhausted cyc 6 its 2111 t 830.2
+V15L GripperPegInsert 1 miss 1.0543 exhausted cyc 10 its 3278 t 1054.7
+solved 0 / 2
+[queue] 04:59:42 done: GripperPegInsert 0:2 V15L full.jsonl
+[queue] 04:59:42 start: GripperLegTwist 0:2 V15L full.jsonl
+V15L GripperLegTwist 0 miss 3.1419 exhausted cyc 8 its 2669 t 1162.4
+V15L GripperLegTwist 1 miss 3.1389 exhausted cyc 8 its 2364 t 826.6
+solved 0 / 2
+[queue] 05:33:12 done: GripperLegTwist 0:2 V15L full.jsonl
+[queue] 05:33:12 start: GripperDrawer 0:2 V15L full.jsonl
+V15L GripperDrawer 0 miss 0.4201 exhausted cyc 8 its 2658 t 783.1
+V15L GripperDrawer 1 miss 0.3351 exhausted cyc 10 its 2948 t 823.4
+solved 0 / 2
+[queue] 06:00:25 done: GripperDrawer 0:2 V15L full.jsonl
+[queue] ALLDONE

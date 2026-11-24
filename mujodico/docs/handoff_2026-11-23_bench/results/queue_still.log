@@ -1,0 +1,9 @@
+[queue] 20:35:46 waiting: chain_lad timing window open
+[queue] 20:36:46 waiting: chain_lad timing window open
+[queue] 20:37:46 waiting: chain_lad timing window open
+[queue] 20:38:46 waiting: chain_lad timing window open
+[queue] 20:39:46 start: GripperCubeLiftGraspedStill 0:3 V15 cubelift_still.jsonl
+V15 GripperCubeLiftGraspedStill 0 miss 0.6419 exhausted cyc 4 its 418 t 55.4
+V15 GripperCubeLiftGraspedStill 1 miss 0.7366 exhausted cyc 5 its 744 t 83.2
+V15 GripperCubeLiftGraspedStill 2 miss 1.868 exhausted cyc 4 its 401 t 43.0
+solved 0 / 3

@@ -1,0 +1,21 @@
+[queue] 03:15:30 start: GripperCubeLiftPregraspX2 0:2 V15j off.jsonl
+V15j GripperCubeLiftPregraspX2 0 OK   0.0029 done cyc 0 its 91 t 157.8
+V15j GripperCubeLiftPregraspX2 1 OK   0.0023 done cyc 0 its 95 t 6.6
+solved 2 / 2
+[queue] 03:18:35 done: GripperCubeLiftPregraspX2 0:2 V15j off.jsonl
+[queue] 03:18:35 start: GripperCubeLiftPregraspYaw3 0:2 V15j off.jsonl
+V15j GripperCubeLiftPregraspYaw3 0 OK   0.0011 done cyc 2 its 310 t 188.1
+V15j GripperCubeLiftPregraspYaw3 1 OK   0.0011 done cyc 1 its 319 t 24.0
+solved 2 / 2
+[queue] 03:22:31 done: GripperCubeLiftPregraspYaw3 0:2 V15j off.jsonl
+[queue] 03:22:31 start: GripperCubeLiftPregraspX2Yaw3 0:2 V15j off.jsonl
+V15j GripperCubeLiftPregraspX2Yaw3 0 OK   0.0003 done cyc 0 its 169 t 182.4
+V15j GripperCubeLiftPregraspX2Yaw3 1 OK   0.0026 done cyc 1 its 225 t 22.4
+solved 2 / 2
+[queue] 03:26:16 done: GripperCubeLiftPregraspX2Yaw3 0:2 V15j off.jsonl
+[queue] 03:26:16 start: GripperCubeLiftPregraspZ5 0:2 V15j off.jsonl
+V15j GripperCubeLiftPregraspZ5 0 OK   0.0027 done cyc 0 its 55 t 169.7
+V15j GripperCubeLiftPregraspZ5 1 OK   0.0025 done cyc 0 its 57 t 3.4
+solved 2 / 2
+[queue] 03:29:32 done: GripperCubeLiftPregraspZ5 0:2 V15j off.jsonl
+[queue] ALLDONE

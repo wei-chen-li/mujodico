@@ -1,0 +1,123 @@
+[
+ {
+  "key": "GripperCubeStack_s0",
+  "task": "GripperCubeStack",
+  "seed": 0,
+  "metric": 1.7950802595070117e-06,
+  "start_metric": 5.2989730662117465,
+  "horizon_s": 4.5,
+  "frames": 91,
+  "doc": "OmniReset 'Cube Stacking': stack cube A on cube B with a desired orientation.\n\n  Parallel gripper on a 6-DoF wrist; two 5 cm, 100 g cubes on a table.  Goal: A centred on B's\n  top face with A's yaw = B's yaw + 90 deg, B undisturbed.  Seeds randomize both cubes' (x, y, yaw).\n  Contacts (16, all sphere-box): 4 pad spheres vs A; A's 4 bottom corner spheres vs table and\n  vs B; B's 4 bottom corner spheres vs table.  Not modelled (documented simplifications): pads\n  vs table (the wrist-height floor wz >= PAD_LOW keeps vertical pads above it), pads vs B,\n  A's top corners.  Cost: A pose (pos 100, quat 1) + B pose (pos 100, quat 0.1); success < 0.01\n  (~1 cm, ~11 deg).",
+  "bytes": 825609
+ },
+ {
+  "key": "AllegroHammer_s0",
+  "task": "AllegroHammer",
+  "seed": 0,
+  "metric": 2.6174496220439826e-09,
+  "start_metric": 0.16,
+  "horizon_s": 6.0,
+  "frames": 76,
+  "doc": "SimToolReal 'hammer': pick up a hammer lying on the table and drive a nail.\n\n  Model: Allegro on a 6-DoF wrist (palm down).  Hammer = head (cylinder r 2 cm, 4 cm tall, axis\n  vertical, 60 g) + handle (capsule r 11 mm, 14 cm, 50 g) + end knob (sphere r 2 cm, 20 g); it\n  starts lying with the head standing on its face and the handle horizontal along world y (the\n  knob props the handle end: simplification, \"handle raised on its head\"; head face down =\n  striking face down, so the palm-down hand needs no in-hand reorientation, only a pick,\n  transport, a wrist correction for the grasp roll, and a strike / press).  The nail is a\n  vertical slide joint (range -3.5..+0.1 cm, nail head 3.1 cm above the block) in a fixed block\n  (visual only) with dry friction NAIL_FRICTION = 4 N and damping 5 N s/m: the hammer's weight\n  (1.3 N) does not move it; it must be pressed or struck through the grip (or the hammer dropped\n  head-first from >~6 cm).  Goal: nail driven down GOAL_DEPTH = 2 cm (the range allows 3.5 cm,\n  so overdriving is penalised).  Note: at dt 0.04 the true law shows a slow creep of the nail\n  under its own weight (~0.3 mm over the horizon).\n  Contacts (14): 4 fingertip capsules + 2 palm capsules vs handle (capsule-capsule); 4 fingertip\n  end spheres vs table; head support spheres (2) + knob vs table; hammer head (cylinder) vs nail-head\n  sphere.  Not modelled (simplifications): hand vs nail / block (excluded: only the hammer head\n  can act on the nail), hammer vs block (the head cannot reach the block top before the nail hits\n  its range limit), finger links, palm vs table (wrist-height floor wz >= WRIST_FLOOR).\n  Cost: nail joint (weight 400); Qf = 40 Q.  Success: metric < 0.01 (|depth error| < 5 mm).\n  Seeds randomize the hammer's (x, y, yaw).  Witness (~4.4 s of 6 s): pinch the handle near its\n  balance point, lift, roll / move the wrist so the head face is down over the nail, press\n  (depth by bisection on true-law rollouts), retract.",
+  "bytes": 1075719
+ },
+ {
+  "key": "GripperCubeLift_s0",
+  "task": "GripperCubeLift",
+  "seed": 0,
+  "metric": 0.00012436986033986417,
+  "start_metric": 0.64,
+  "horizon_s": 2.5,
+  "frames": 51,
+  "doc": "Diagnostic rung below GripperCubeStack: grasp cube A and lift it 8 cm straight up (same\n  x, y, yaw); B stays put.  Same model, contacts and cost weights.",
+  "bytes": 421322
+ },
+ {
+  "key": "GripperPegInsert_s0",
+  "task": "GripperPegInsert",
+  "seed": 0,
+  "metric": 0.0002049218545449479,
+  "start_metric": 7.220447462707405,
+  "horizon_s": 4.5,
+  "frames": 91,
+  "doc": "OmniReset 'Peg Insertion': grasp a square peg lying on the table, reorient it upright (a 90 deg\n  wrist rotation about the jaw axis) and insert it into a fixed hole to the floor (4.5 cm deep).\n\n  Model.  Peg: 3 x 3 x 12 cm square bar, 60 g (box collides with pads and hole walls; two inscribed\n  end spheres r = 1.5 cm collide with the table).  The peg starts lying on a face, axis along world\n  y +- 0.4 rad, at (0.12, -0.08) +- 3 cm (seeded).  Hole (fixed, centre (-0.10, 0.10)): two rings\n  of four static spheres (r = 1.5 cm, centres at z = 1.5 and 4.5 cm, facing the four peg faces) --\n  a square-ish hole 4.5 cm deep with rounded (chamfered) walls, radial clearance 3 mm per side at the\n  face centres (~4.5 mm along the diagonals; the peg can spin +-23 deg about its axis inside the\n  hole before a corner jams).  The hole floor is the table.  Adjacent ring spheres leave a 1.7 cm gap\n  (< 3 cm peg width) and the rings touch vertically, so the peg can only enter from above.\n  Contacts (14; 32 contact dims): 4 pad spheres vs peg box; 2 peg end spheres vs table; 8 hole\n  spheres vs peg box (frictionless, condim 1).\n  Simplifications: pads vs table not modelled (wrist floor wz >= PAD_LOW); pads vs hole fixture not\n  modelled (in the upright hold the pads are 3 cm above the fixture); the peg's box edges vs table\n  are replaced by the inscribed end spheres (a lying peg rolls about its axis like a cylinder and its\n  corners may dip ~4 mm into the table when strongly tilted); the fixture block between the rings has\n  no collision (only the 8 spheres exist).\n  Goal: peg upright with its capped (-z) end UP, faces aligned with the hole (one of the 8\n  symmetric orientations of a square peg, the one reached by grasping the capped end and rotating\n  the free end down), bottom on the hole floor.  Cost: peg pose (pos 100, quat 1); success < 0.01\n  (~1 cm / ~11 deg).",
+  "bytes": 852535
+ },
+ {
+  "key": "GripperLegTwist_s0",
+  "task": "GripperLegTwist",
+  "seed": 0,
+  "metric": 0.001516210184122421,
+  "start_metric": 11.007125166868814,
+  "horizon_s": 6.0,
+  "frames": 61,
+  "doc": "OmniReset 'Screwing in a table leg': pick up a table leg lying on the table, stand it upright\n  in a socket and twist it so that its key turns the socket's nut (\"thread\") by 90 deg.\n\n  Model.  Leg (60 g, 14 cm): upper half a 3 x 3 cm square bar (the grip section; collides with the\n  pads only), lower half a round stud (capsule r = 1.5 cm; collides with the socket rings only); two\n  end spheres r = 1.5 cm (the stud's end cap / inscribed in the square end) collide with the table.\n  A key pin (sphere r = 6 mm, centre 2.1 cm off the axis, 1.5 cm above the lower (+z) end; it sticks\n  out 1.2 cm) collides with the nut's dogs only.  The leg starts lying on a face, axis along world\n  y +- 0.4 rad, at (0.12, -0.08) +- 3 cm (seeded).\n  Socket at (-0.10, 0.10): a fixed round hole made of two rings of four static spheres (r = 1.2 cm,\n  centres at z = 3.5 and 5.8 cm, radial clearance 3 mm to the stud) above a NUT: a body on a hinge\n  about world z with viscous damping 0.02 N m s and armature 2e-3, carrying two dog pins (vertical\n  capsules r = 5 mm at radius 2.2 cm, z 0.4..2.6 cm, +-35 deg about the slot centre) that form a\n  slot for the key (+-0.15 rad of play).  The slot starts at -45 deg (the leg is then inserted with\n  the wrist yawed -45 deg and the 90 deg twist stays inside the wrist's +-1.6 rad range).  Turning\n  the seated leg drives the nut through key-vs-dog contacts only: the gripper cannot touch the nut.\n  Contacts (16; 34 contact dims): 4 pad spheres vs leg grip section; 2 leg end spheres vs table;\n  8 ring spheres vs stud and key vs 2 dogs (these 10 frictionless, condim 1).\n  Simplifications: the thread is a pure rotation with viscous resistance -- no axial advance and NO\n  dry friction: a frictionloss on the nut hinge (0.01-0.03 N m) made the true law blow up (single-step\n  explosions of the held leg, at rest, right after the twist) whenever the key was loaded against a\n  dog while the gripper held the leg in the rings, so the nut holds its angle only by damping;\n  the tabletop is the work table (socket floor); the key does not collide with the ring spheres (the\n  ring gaps 45 deg from its spheres act as the keyway: the witness inserts the key through a gap,\n  where it clears the spheres physically, but a solver could push it through a ring sphere); the\n  pads do not collide with the round stud and the grip section does not collide with the rings\n  (inserting the square end first would pass through the rings, but cannot reach the goal pose);\n  pads vs table not modelled (wrist floor wz >= PAD_LOW); pads vs socket not modelled (the pads hold\n  the leg ~4 cm above the rings).\n  Goal: nut angle +90 deg (joint 'nut' = pi/2) and the leg seated upright, stud end down, key\n  centred in the turned slot.  Cost: leg pose (pos 100, quat 0.5) + nut angle 1; success < 0.01\n  (~1 cm, ~6 deg of nut angle).",
+  "bytes": 670914
+ },
+ {
+  "key": "GripperDrawer_s0",
+  "task": "GripperDrawer",
+  "seed": 0,
+  "metric": 0.0016839896549071423,
+  "start_metric": 12.441074544161747,
+  "horizon_s": 6.0,
+  "frames": 61,
+  "doc": "OmniReset 'Drawer insertion': a drawer lying on its side must be flipped upright and pushed\n  into a cabinet slot (handle out).\n\n  Model.  Drawer: solid 7 x 6 x 4 cm box, 100 g, handle (visual) on its +x face.  It starts lying\n  on its -y side face (6 cm tall, 4 cm thick), yaw +- 0.3 rad, at (0.10, -0.12) +- 3 cm (seeded).\n  Collision: the box collides with the pads and with the cabinet; six corner spheres (r = 4 mm) of\n  its -y side face and -z bottom face collide with the table (the corners it can rest or pivot on\n  while flipping from the side onto the bottom).  Cabinet (fixed, slot opening facing +x, slot\n  7 cm deep, centred at y = 0.12, mouth at x = -0.06): six static spheres (r = 1.2 cm) -- two at the\n  mouth and two at the back of each side wall (4 mm clearance to the drawer's sides), one back stop\n  and one ceiling sphere at the mouth (4 mm above the drawer).  The slot floor is the table.  The wall\n  spheres leave <= 2.2 cm gaps (< the drawer's 4 cm thickness), so the drawer can only enter through\n  the mouth, and only upright (the ceiling sphere stops a drawer on its side).\n  Contacts (16; 46 contact dims): 4 pad spheres vs drawer box; 6 drawer corner spheres vs table;\n  6 cabinet spheres vs drawer box (frictionless, condim 1).\n  Simplifications: pads vs table not modelled (wrist floor wz >= PAD_LOW); pads vs cabinet not\n  modelled (a solver could carry the drawer fully in with the pads passing through the side walls;\n  the witness sets it down in front of the mouth and pushes it in); the drawer's top-face corners and the +y\n  side face's top corners have no table contact (a drawer flipped onto its top or other side would\n  sink 4 cm into the table -- unphysical but useless for reaching the goal); the cabinet body\n  between its spheres has no collision.\n  Goal: drawer upright (bottom down, handle facing +x) fully inserted: back face on the back stop,\n  front face flush with the cabinet mouth.  Cost: drawer pose (pos 100, quat 1); success < 0.01\n  (~1 cm / ~11 deg).\n  Witness: grasp the lying drawer by its end faces (jaws along its 7 cm axis, 8.5 cm stroke), rotate\n  it upright about the jaw axis (wrx -> -90 deg), set it down 1.2 cm in front of the mouth (released\n  from ~1.5 cm because horizontal pads cannot go below the wrist floor), then push its front face\n  with both vertical pads.  (Tipping it over by pushing its top does not work under the true law:\n  the regularized friction lets it slide instead of pivot.)",
+  "bytes": 728359
+ },
+ {
+  "key": "AllegroScrewdriver_s0",
+  "task": "AllegroScrewdriver",
+  "seed": 0,
+  "metric": 0.0009513639328587744,
+  "start_metric": 2.4674011002723395,
+  "horizon_s": 6.0,
+  "frames": 76,
+  "doc": "SimToolReal 'screwdriver': pick up a screwdriver lying on the table, turn it upright, put\n  the blade in the screw's slot and turn the screw by GOAL_ANGLE (pi/2).\n\n  Model: Allegro on a 6-DoF wrist (palm down).  Screwdriver = handle (capsule r 13 mm, 9 cm,\n  40 g) with end bolsters (spheres r 2 cm, its table supports) + shaft (capsule r 3 mm, 6.5 cm,\n  8 g) + blade (horizontal capsule r 1.5 mm, 2.1 cm wide, 2 g, with a tip sphere vs the table);\n  it starts lying along world y (blade toward -y, blade edge roughly vertical) with the handle\n  axis 2 cm up (simplification: bolstered handle so the pinch can cage it from below).  The screw\n  is a hinge about z in a fixed block (visual only) with dry friction SCREW_FRICTION = 0.02 N m\n  and damping 0.002 N m s; its slot is two vertical post capsules (r 1.5 mm, 8 mm tall) at\n  (+a, +d) and (-a, -d) = (+-6, +-4.5) mm on the head, slot direction SCREW_YAW: the blade, once\n  between them (0.25 rad play), turns the screw counter-clockwise (the goal direction; the slot is\n  one-sided for clockwise turns: simplification).  The hand must reorient the tool by 90 deg\n  (wrist roll, blade down), insert the blade and twist the tool about its own axis -- which for\n  this wrist is a wrist rotation about vertical plus a 13 cm circular wrist translation (the wrist\n  hinges are 13 cm from the pinched tool axis).  SCREW_YAW and the blade-roll randomization are\n  chosen so the pi/2 twist (plus slot play and overshoot) fits the wry range without a regrasp.\n  Contacts (13): 4 fingertip capsules vs handle; 4 fingertip end spheres vs table; 2 bolsters +\n  blade-tip sphere vs table; blade vs 2 posts (capsule-capsule).  Not modelled: hand vs screw /\n  block (excluded: only the blade can turn the screw), palm vs tool (excluded: a pinch never\n  uses it), shaft vs table, tool vs block and blade vs the screw-head top (the blade can sink below\n  the posts and lose the slot, but gains nothing), finger links, palm vs table (wrist floor).\n  Cost: screw angle (weight 1); Qf = 40 Q.  Success: metric < 0.01 (|angle error| < 0.1 rad).\n  Seeds randomize the screwdriver's (x, y, yaw) and its roll about its axis (blade angle, +-0.3).\n  Witness (~5.3 s of 6 s): pinch (cage) the handle, lift, roll the wrist 90 deg while moving over\n  the screw, align the blade over the slot at a hover point (refined on rollouts; grasp re-measured\n  there), insert, twist 12 keyframes about the screw axis with per-keyframe drift corrections learnt\n  on rollouts (iterative learning control, first in the air, then in the slot) and wrist velocity\n  feed-forward, retract; the twist overshoot is grid-searched for the final angle.",
+  "bytes": 1112522
+ },
+ {
+  "key": "AllegroSpatulaFlip_s0",
+  "task": "AllegroSpatulaFlip",
+  "seed": 0,
+  "metric": 0.001674424329968541,
+  "start_metric": 1.7944645558945669,
+  "horizon_s": 6.0,
+  "frames": 76,
+  "doc": "SimToolReal 'spatula': pick up a spatula lying on the table, slide its blade under a toast\n  slice and flip the toast upside down (180 deg about its local y axis) onto the spot next to it.\n\n  Model: Allegro on a 6-DoF wrist (palm down).  Spatula = handle (capsule r 12 mm, 12 cm, 30 g)\n  with an end knob (sphere r 2 cm, its table support), a cranked neck and a thin blade (box\n  6 x 8 x 0.12 cm, 20 g) that lies flat on the table while the handle is raised 2 cm (a turner's\n  offset handle).  Toast = light box (8 x 8 x 1.6 cm, 30 g) lying ~20 cm in front of the blade.\n  Its collision geometry (simplification: no corner / face collisions, which would cost 8+\n  contacts) is four spheres at mid-thickness: two pivot spheres (r = half thickness) on its local\n  +x edge and one inboard support sphere (same r, at x = -1.2 cm) -- it rests on these three both\n  right side up and upside down, and rolls over the rounded +x edge -- plus a small crust sphere\n  (r 4 mm) at the middle of its -x edge, 4 mm clear of the table (a slightly raised crust edge),\n  which is the only part the blade can touch.  Flip = slide the blade under the crust, lift it,\n  rotating the toast about its +x edge past vertical, let it fall.  Goal = the ideal roll-over:\n  upside down (Rz(yaw) Ry(pi)), centre moved by TOAST_ROLL = 2 * 3.2 cm + pi * 0.8 cm (the\n  pivot spheres roll) = 8.9 cm along the toast's local +x (~world +y).\n  Contacts (15): 4 fingertip capsules vs handle; 4 fingertip end spheres vs table; spatula knob +\n  2 blade front-corner spheres vs table; 3 toast support spheres vs table; blade (box) vs the crust\n  sphere.  Not modelled: hand vs toast (excluded: only the blade can move the toast), blade vs the\n  toast's support spheres / faces (the blade passes through the toast's underside), the blade's\n  rear edge vs table, finger links, palm vs tool (excluded), palm vs table (wrist floor\n  wz >= SPAT_FLOOR).  Frictions: toast supports 1.0, blade / crust 0.3.\n  Cost: toast pose (pos weight W_POS = 100, quaternion weight 1); Qf = 40 Q.  Success: metric\n  < 0.01 (~1 cm and ~6 deg).  Seeds randomize the spatula's (x, y, yaw) and the toast's (x, y, yaw).\n  Witness (~5.2 s of 6 s): pinch (cage) the handle, lift, measure the grasp, put the blade flat on\n  the table behind the crust (refined on rollouts), slide under, rotate the toast with the blade\n  tangent to its underside up to th_max, push on along the blade normal, retract (th_max / push\n  grid-searched on rollouts).",
+  "bytes": 1068695
+ },
+ {
+  "key": "AllegroPenBoard_s0",
+  "task": "AllegroPenBoard",
+  "seed": 0,
+  "metric": 1.577139833514422e-05,
+  "start_metric": 0.216,
+  "horizon_s": 6.0,
+  "frames": 76,
+  "doc": "SimToolReal 'pen / marker writing': reorient a pen and write a letter on a whiteboard.\n\n  Modelled: a thick marker (barrel capsule r 16 mm, 13 cm + caps; a tip sphere r 7 mm on its axis\n  8 cm from the centre, i.e. 1.5 cm beyond the barrel end; 25 g) lying flat on the table along ~world\n  y, tip toward -y.  A whiteboard area on the table holds 5 'ink pins' laid out as the letter 'L'\n  (2 cm pitch): each pin is a vertical slide joint (range [-12 mm, +2 mm], gravity-compensated,\n  damping 1 N s/m, no restoring force: it stays wherever it is pushed) with a sphere head (r 6 mm)\n  standing 12 mm proud; pressed = head top flush with the board.  Writing = pressing every pin of\n  the letter to its stop with the pen tip: the hand must pinch the pen, lift it, turn it upright\n  (~90 deg about the pinch axis; >= ~37 deg is geometrically necessary, since the barrel-end support\n  sphere keeps a flatter tip too high) and dab the letter.\n  Simplifications: the ink stroke is discretised into pins; the pen is a thick marker (r 16 mm) so the\n  palm-down Allegro pinch can reach below its equator without the fingertips hitting the table (a\n  r 12 mm pen squirted out of the pinch); pen inertia is inflated to (1e-4, 2e-5 axial) kg m^2\n  (real ~4e-5 / 3e-6) because the true law blew up with the real values; only the pen TIP touches\n  the pins (frictionless; hand, barrel and caps excluded) and the tip does not touch the table\n  (pins bottom out on their stops); the barrel rests on two support spheres (r 16 mm at the barrel\n  ends) that touch the table only.\n  Contacts (15; 45 constraint rows): 4 fingertip capsules vs barrel (capsule-capsule); 2 pen support\n  spheres vs table; 4 fingertip spheres vs table (palm vs table -> wrist floor wz >= 0.015); pen tip\n  vs 5 pin heads (condim 1).\n  Cost: 300 * sum_i (q_pin_i + 12 mm)^2 (pen pose weight 0); Qf = 40 Q.  Success < 0.01: e.g. all\n  pins within 2.5 mm of the stop, or one pin short by <= 5.7 mm with the rest bottomed out; an\n  untouched pin alone costs 0.043 (fail).  Seeds randomize the pen's (x +-1.5 cm, y +-0.5 cm,\n  yaw +-0.15) start.  Witness: 5.2 s (130 steps).",
+  "bytes": 1270010
+ },
+ {
+  "key": "AllegroBrushSweep_s0",
+  "task": "AllegroBrushSweep",
+  "seed": 0,
+  "metric": 0.0020278987349711787,
+  "start_metric": 1.5037314353653612,
+  "horizon_s": 5.2,
+  "frames": 66,
+  "doc": "SimToolReal 'brush sweeping': grasp a hand brush, turn its bristles down, sweep debris into a pan.\n\n  Modelled: a brush lying on the table -- handle capsule (r 15 mm, 13 cm + caps, 20 g, along ~world y)\n  and, past its +y end, a bristle block (box 6 x 6 x 1 cm, 8 g) offset 16 mm from the handle axis,\n  whose bristles point SIDEWAYS (-x, horizontal).  The hand must pinch the handle palm-down, lift it\n  and roll it ~90 deg about the handle axis so the bristles point down (the wrist rolls 60 deg, the\n  handle rolls another ~30 deg inside the pinch, thumb ending under the handle), then sweep toward +x.\n  Two crumbs (spheres r 4.5 mm, 10 g) are planar bodies (x, y slide joints, damping 0.15 N s/m, fixed\n  height, as in the repo's PushT task); the dustpan is a floor region x in [9.5, 16.5] cm with its\n  back wall at x = 16.5 cm (a box that stops crumbs).  Lying, the bristle block is 26 mm off the table\n  (crumb tops at 9 mm), so the brush must be rolled >= ~45 deg before it can touch them.\n  Simplifications: crumbs are planar (no z / rotation) and only the bristle block touches them (hand,\n  handle and supports excluded); the pan is its back wall only (the brush passes through it); the\n  brush rests on 3 support spheres (both handle ends; a r 12.5 mm foot under the head, which stays\n  6 mm short of the bristle tips once they point down) that touch the table only -- the bristle block\n  itself never touches the table; light brush (28 g): the pinch creeps under load; fingertips touch\n  the handle only.\n  Contacts (15; 60 constraint rows): 4 fingertip capsules vs handle (capsule-capsule); 3 support\n  spheres vs table; 4 fingertip spheres vs table (palm vs table -> wrist floor wz >= 0.015); bristle\n  block vs 2 crumbs (box-sphere, friction 0.5); pan wall vs 2 crumbs.\n  Cost: 25 * sum_i |crumb_i(x, y) - target_i|^2, targets against the pan's back wall (x = 16.05 cm,\n  y = 7.5 / 11.5 cm), brush pose weight 0; Qf = 40 Q.  Success < 0.01: e.g. both crumbs within 1.4 cm\n  of their spots, or one exact and the other within 2 cm (the wall makes x easy; y is the hard part).\n  Seeds randomize the brush (x, y +-1 cm, yaw +-0.12) and the crumb starts (+-0.6 cm).\n  Witness: 4.5 s (113 steps).",
+  "bytes": 967737
+ },
+ {
+  "key": "AllegroEraserWipe_s0",
+  "task": "AllegroEraserWipe",
+  "seed": 0,
+  "metric": 1.112368033446139e-05,
+  "start_metric": 0.18,
+  "horizon_s": 4.8,
+  "frames": 61,
+  "doc": "SimToolReal 'eraser wiping': grasp an eraser, turn its felt face down, wipe the ink off a board.\n\n  Modelled: a handled whiteboard eraser -- felt block 5 x 2.5 x 2 cm (15 g) with a handle bar (capsule\n  r 12.5 mm, 7.4 cm + caps, 8 g) parallel to its length, 2.6 cm finger clearance between them (posts\n  visual only) -- lying on its SIDE on three 12 mm feet: the felt face is vertical, facing -x.  The hand\n  must pinch the handle palm-down, lift it and roll it ~90 deg about the handle axis (wrist 60 deg +\n  ~35 deg roll inside the pinch; >= ~45 deg is geometrically necessary) so the felt faces down, then\n  press the ink off.  'Ink' = a 2 x 3 grid\n  of push-pins (pitch 3 cm in x, 2.2 cm in y) standing 10 mm proud of the board; each pin is a vertical\n  slide joint (range [-10 mm, +2 mm], gravity-compensated, damping 1 N s/m, no restoring force) with a\n  sphere head (r 6 mm).  Wiped = every pin flush (at its stop).  The felt face (2.5 cm across) covers\n  one column of 3 pins at a time, so at least two placements (or a wipe across) are needed.\n  Simplifications: only the felt block touches the pins (frictionless; hand and handle excluded); the\n  block never touches the table (pins bottom out on their stops); the eraser rests on 3 feet (spheres\n  r 6 mm: handle middle, 2 under the block, table only) that hold its side faces 12 mm off the table\n  so its sides cannot squash the pins; the middle finger is excluded from the eraser (3-contact pinch:\n  index + ring vs thumb, finger spread 2.5 cm) and fingertips touch the handle only.\n  Contacts (16; 46 constraint rows): 3 fingertip capsules (ff, rf, th) vs handle; 3 feet vs table;\n  4 fingertip spheres vs table (palm vs table -> wrist floor wz >= 0.015); felt block vs 6 pin heads\n  (box-sphere, condim 1).\n  Cost: 300 * sum_i (q_pin_i + 10 mm)^2 (eraser pose weight 0); Qf = 40 Q.  Success < 0.01: e.g. all\n  pins within 2.3 mm of flush; one untouched pin alone costs 0.03 (fail).  Seeds randomize the\n  eraser's (x, y +-1 cm, yaw +-0.12) start.  Witness: 4.0 s (100 steps).",
+  "bytes": 1044055
+ }
+]

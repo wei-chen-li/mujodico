@@ -1,0 +1,1 @@
+GripperCubeLiftGrasped 0:3 V15rX2 diag_x.jsonl

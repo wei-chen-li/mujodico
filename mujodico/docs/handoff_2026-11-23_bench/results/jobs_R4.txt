@@ -1,0 +1,4 @@
+AllegroHammer 0:2 V15L full.jsonl
+AllegroPenBoard 0:2 V15L full.jsonl
+AllegroScrewdriver 0:2 V15L full.jsonl
+AllegroSpatulaFlip 1:2 V15L full.jsonl

@@ -1,0 +1,11 @@
+[queue] 21:05:53 start: AllegroHammer 0:2 V15h bench_h.jsonl
+V15h AllegroHammer 0 miss 0.1563 exhausted cyc 4 its 225 t 584.8
+V15h AllegroHammer 1 miss 0.1564 exhausted cyc 4 its 436 t 607.0
+solved 0 / 2
+[queue] 21:26:15 done: AllegroHammer 0:2 V15h bench_h.jsonl
+[queue] 21:26:15 start: AllegroEraserWipe 0:2 V15h bench_h.jsonl
+V15h AllegroEraserWipe 0 miss 0.0416 exhausted cyc 7 its 836 t 1322.6
+V15h AllegroEraserWipe 1 miss 0.0708 exhausted cyc 10 its 578 t 610.5
+solved 0 / 2
+[queue] 21:58:59 done: AllegroEraserWipe 0:2 V15h bench_h.jsonl
+[queue] 21:58:59 start: AllegroPenBoard 0:2 V15h bench_h.jsonl
