@@ -77,6 +77,22 @@ def _boxqp(H, g, Hx, lo, hi, iters=4):
   return k, K
 
 
+@jax.tree_util.register_dataclass
+@dataclasses.dataclass(frozen=True)
+class MParams:
+  """TranscriptionParams plus terminal multipliers (E4, --term mult): nu on the state error (quaternion entries unused),
+  nuq per quaternion block on its distance 1 - <q, q_g>^2.  Duck-typed for the transcription's stage/terminal costs."""
+  x_0: jax.Array
+  x_goal: jax.Array
+  Q: jax.Array
+  Qf: jax.Array
+  u_ref: jax.Array
+  R: jax.Array
+  margin_w: jax.Array
+  nu: jax.Array
+  nuq: jax.Array
+
+
 class LFDDP:
 
   def __init__(self, task, lms, vel_bound=5.0, vel_w=1e3, curv=False, clear_w=None, clear_margin=0.0):
@@ -124,8 +140,21 @@ class LFDDP:
     def lst(x, u, P):
       return trans.stage_cost(x, jp.concatenate([u, jp.zeros(ncf)]), P) + vpen(x)
 
+    qw_idx = list(task.quaternion_w_idxs)
+    def mult_term(x, P):   # nu' e + sum_q nuq (1 - <q, q_g>^2); zero for plain params
+      if not hasattr(P, 'nu'):
+        return 0.0
+      e = x - P.x_goal
+      for i in qw_idx:
+        e = e.at[i:i + 4].set(0.0)
+      t = jp.dot(P.nu, e)
+      for b, i in enumerate(qw_idx):
+        q = x[i:i + 4] / jp.linalg.norm(x[i:i + 4]); qg = P.x_goal[i:i + 4] / jp.linalg.norm(P.x_goal[i:i + 4])
+        t = t + P.nuq[b] * (1.0 - jp.dot(q, qg) ** 2)
+      return t
+
     def lterm(x, P):
-      return trans.terminal_cost(x, P) + vpen(x)
+      return trans.terminal_cost(x, P) + vpen(x) + mult_term(x, P)
     self.lst, self.lterm = lst, lterm
 
     def bar(c, mu):   # log barrier on each contact's normal force (contact attraction on the far-field tail)
@@ -235,6 +264,36 @@ class LFDDP:
       return jp.concatenate([X, xN[None]]), U, C
     self._track = jax.jit(track_roll)
 
+    def fwd_lifted(X, U, C, k, K, A, B, a, hbar, alpha, eps, P, mu, ftb):
+      """E8: the linear step of the Riccati policy on (A, B, a), applied to the lifted variables without a rollout:
+      dx from the linear model, du = k + K dx, dgamma = Phi_x dx + Phi_u du - hbar; x + alpha dx, clip(u + alpha du),
+      gamma + alpha dgamma.  Gaps are carried; returns the cost, the 1-norm of the new gaps, and a fraction-to-boundary
+      check on the normal forces (each live normal force keeps at least 0.5 % of its value)."""
+      def step(dx, inp):   # du clipped at the full step, so u + alpha du stays in the box and dX matches it
+        A_, B_, a_, k_, K_, u_ = inp
+        du = jp.clip(u_ + k_ + K_ @ dx, self.lb, self.ub) - u_
+        return A_ @ dx + B_ @ du + a_, (dx, du)
+      dxN, (dX, dU) = jax.lax.scan(step, jp.zeros(X.shape[1]), (A, B, a, k, K, U))
+      dX = jp.concatenate([dX, dxN[None]])
+      def dgam(x, u, dx, du, hb):
+        _, t = jax.jvp(lambda x_, u_: law(x_, u_, eps), (x, u), (dx, du))
+        return t - hb
+      dC = jax.vmap(dgam)(X[:-1], U, dX[:-1], dU, hbar)
+      # alpha is relative to the largest step keeping every live normal force above 0.5 % of its value (an IP's rule)
+      n0 = C @ G.T; dn = dC @ G.T
+      amax = jp.minimum(1.0, jp.min(jp.where((n0 > NFLOOR) & (dn < 0), 0.995 * n0 / jp.where(dn < 0, -dn, 1.0), jp.inf)))
+      alpha = alpha * jp.where(ftb, amax, 1.0)
+      Xh = X + alpha * dX; Uh = U + alpha * dU; Ch = C + alpha * dC
+      fb = jax.vmap(lambda x_, u_, c_: f(x_, jp.concatenate([u_, c_])))(Xh[:-1], Uh, Ch) - Xh[1:]
+      hb = Ch - jax.vmap(law, (0, 0, None))(Xh[:-1], Uh, eps)
+      Gn = jp.sum(jp.abs(fb)) + jp.sum(jp.abs(hb))
+      n_old = C @ G.T; n_new = Ch @ G.T
+      okb = jp.all(jp.where(n_old > NFLOOR, n_new >= 0.005 * n_old, True))
+      J = jnp_cost(Xh, Uh, Ch, P, mu)
+      ok = jp.all(jp.isfinite(Xh)) & okb
+      return Xh, Uh, Ch, jp.where(ok, J, jp.inf), Gn, alpha
+    self._fwd_lifted_b = jax.jit(jax.vmap(fwd_lifted, in_axes=(None,) * 9 + (0,) + (None,) * 4))
+
 
 if __name__ == '__main__':
   name, rng_, label, out = sys.argv[1:5]
@@ -292,6 +351,17 @@ if __name__ == '__main__':
   nu_merit = opt('--nu-merit', 1e3)
   lpec = opt('--lpec', 0, int)          # >0: at most this many LPEC branch-step rounds when PLF-V ends short of the goal
   lpec_d0 = opt('--lpec-delta', 0.05)   # LPEC trust radius (controls, inf-norm); /2.5 after a step without tau-decrease (<= 2 in a row)
+  lpec_cyc = opt('--lpec-cyc', -1, int)          # E6: cap on the cycles of an LPEC round (-1: none)
+  exc_engine = opt('--exc-engine', 'ip', str)   # E8: ip | lifted (the cycle excursions' solver)
+  exc_ftb = bool(opt('--exc-ftb', 0, int))       # E8/F8.1: step-size grid relative to the fraction-to-boundary step
+  exc_glob = opt('--exc-glob', 'merit', str)     # E8/F8.2: merit | filter (the lifted engine's acceptance)
+  exc_nu = opt('--exc-nu', 'fixed', str)         # E8: fixed (nu_merit) | lam (2 max|costate|)
+  exc_only = opt('--exc-only', '', str)          # E8: ip | lifted: one excursion from --from-us, then return
+  save_cyc = opt('--save-cyc', 0, int)           # E8: save the incumbent at every cycle start
+  ladder_auto = opt('--ladder', 'fixed', str) == 'auto'   # E5: discovered top rung (barrier and sigma0)
+  term_mode = opt('--term', 'boost', str)        # E4: boost (x10 terminal weight) | mult (terminal multiplier)
+  watchdog_all = opt('--watchdog-all', 0, int)   # E2b: before the first true response only the cap ends ANY exploration
+  fine_rung = opt('--fine-rung', 0, int)         # E2c: PLF's fine cycle as the bottom rung of level 1 (use with --cycle 0)
   log_steps = opt('--log-steps', 0, int)   # 1: log (alpha, rho, reg) of every accepted feasible-phase step
   ls_spec = opt('--ls-spec', 0, int)   # 1: speculative LFDDP attempts (backward at reg and 10 reg, both line searches at once)
   lpec_solver = opt('--lpec-solver', 'grb', str)   # grb: Gurobi MILP + QP | fast: Gurobi MILP + structured IP QP (lpec_fast)
@@ -309,7 +379,7 @@ if __name__ == '__main__':
       'sig0', 'sig_min', 'kappa', 'stall', 'budget', 'stop_tol', 'max_boosts', 'vel_w', 'curv', 'readout', 'tol_d',
       'lin_dev', 'bf_dev', 'reg0', 'mu0', 'mu_fac', 'lm', 'kscale', 'sig_ddp', 'mistrust', 'tau', 'eta', 'warm',
       'warm_ip', 'ip_mu', 'ip_mumin', 'ip_stall', 'handoff_from', 'nu_merit', 'ro_every', 'ls_mode', 'dwell',
-      'handoff_mucut', 'restart', 'cycle', 'ip_cycle', 'total_budget', 'vcyc', 'v_up', 'v_cap', 'v_stall', 'v_guard', 'v_budget', 'ip_ro', 'ip_ro_scope', 'v_restart', 'from_us', 'v_level', 'v_reset', 'prog_stall', 'v_bud_cycle', 'v_top', 'ip_hess', 'lpec', 'lpec_d0', 'ls_spec', 'lpec_solver', 'lpec_par', 'lpec_start', 'ro_overlap', 'v_local', 'ip_hess_cyc')}
+      'handoff_mucut', 'restart', 'cycle', 'ip_cycle', 'total_budget', 'vcyc', 'v_up', 'v_cap', 'v_stall', 'v_guard', 'v_budget', 'ip_ro', 'ip_ro_scope', 'v_restart', 'from_us', 'v_level', 'v_reset', 'prog_stall', 'v_bud_cycle', 'v_top', 'watchdog_all', 'fine_rung', 'term_mode', 'ladder_auto', 'lpec_cyc', 'exc_engine', 'exc_ftb', 'exc_glob', 'exc_nu', 'exc_only', 'save_cyc', 'ip_hess', 'lpec', 'lpec_d0', 'ls_spec', 'lpec_solver', 'lpec_par', 'lpec_start', 'ro_overlap', 'v_local', 'ip_hess_cyc')}
   a, b = (int(v) for v in rng_.split(':'))
   CPUS = jax.devices('cpu'); CPU = CPUS[0]; GPU = jax.devices()[0]
   DL = GPU if lin_dev == 'gpu' else CPU; DB = GPU if bf_dev == 'gpu' else CPU
@@ -319,6 +389,16 @@ if __name__ == '__main__':
   _LMF = {1.0: 0.25, 0.5: 1.0, 0.25: 3.0, 0.1: 10.0, 0.03: 30.0}
   LMF = {a_: _LMF.get(a_, 0.25 if a_ >= 1.0 else min(30.0, 0.75 / a_)) for a_ in ALPHAS}
   S = None; SL = None
+  # E5 (--ladder auto): rungs (sigma0, (ip-mu, ip-mumin, mu0)) for the first exploration
+  AUTO_RUNGS = [(1.0, (1e-3, 1e-2, 1e-3)), (1.0, (0.1, 0.1, 1e-2)), (10.0, (0.1, 0.1, 1e-2))]
+  AUTO = dict(idx=0, climbed=False)
+  def apply_auto(i):
+    global sig0, mu0, n_rungs_sig
+    s_, (imu, imumin, m0) = AUTO_RUNGS[i]
+    sig0 = s_; mu0 = m0; PHip['mu_init'] = imu; PHip['mu_min'] = imumin
+    n_rungs_sig = int(round(np.log10(sig0 * 10.0 ** v_top / sig_min))) + 1
+    AUTO['idx'] = i
+  n_rungs_sig = int(round(np.log10(sig0 * 10.0 ** v_top / sig_min))) + 1   # level-1 smoothing rungs
   for seed in range(a, b):
     task = make_task(name, seed)
     if S is None:
@@ -371,7 +451,29 @@ if __name__ == '__main__':
     QmC, g0C, x0C = toC(Qm), toC(g0), toC(x0); x0B = toB(x0); QmB, g0B = toB(Qm), toB(g0)
     N, nu, nx = S.N, S.nu, S.nx
     p_base = trans.params
-    Pof = lambda boosts: dataclasses.replace(p_base, Qf=p_base.Qf * 10.0 ** boosts) if boosts else p_base
+    Pof_boost = lambda boosts: dataclasses.replace(p_base, Qf=p_base.Qf * 10.0 ** boosts) if boosts else p_base
+    qwi = list(task.quaternion_w_idxs)
+    MS = dict(nu=np.zeros(nx), nuq=np.zeros(len(qwi)), r_upd=None, n=0)   # E4 multiplier state (per seed)
+    def Pof(boosts):
+      if term_mode != 'mult':
+        return Pof_boost(boosts)
+      return MParams(x_0=p_base.x_0, x_goal=p_base.x_goal, Q=p_base.Q, Qf=p_base.Qf, u_ref=p_base.u_ref, R=p_base.R,
+                     margin_w=jp.asarray(p_base.margin_w, dtype=jp.float64), nu=jp.asarray(MS['nu']), nuq=jp.asarray(MS['nuq']))
+    Pof_ip = (lambda b: p_base) if term_mode == 'mult' else Pof_boost   # IP calls: base terminal weight in mult mode
+    def mult_reset():
+      MS.update(nu=np.zeros(nx), nuq=np.zeros(len(qwi)), r_upd=None)
+    def mult_can_update(r_now):   # the last update gave sufficient decrease of r* (or none yet)
+      return MS['r_upd'] is None or r_now < (1.0 - tau) * MS['r_upd']
+    def mult_update(xT, r_now):
+      xT = np.asarray(xT); xg = np.asarray(p_base.x_goal); Qf_ = np.asarray(p_base.Qf)
+      e = xT - xg
+      for i in qwi:
+        e[i:i + 4] = 0.0
+      MS['nu'] = MS['nu'] + 2.0 * Qf_ @ e
+      for b, i in enumerate(qwi):
+        q = xT[i:i + 4] / np.linalg.norm(xT[i:i + 4]); qg = xg[i:i + 4] / np.linalg.norm(xg[i:i + 4])
+        MS['nuq'][b] += float(np.mean(np.diag(Qf_[i:i + 4, i:i + 4]))) * (1.0 - float(q @ qg) ** 2)
+      MS['r_upd'] = r_now; MS['n'] += 1
     T = dict(ip=0.0, lin=0.0, bwd=0.0, fwd=0.0, true=0.0, xfer=0.0, ro=0.0, n_bwd=0, n_ls=0)
     def tg(us):
       t0 = time.perf_counter(); r = float(true_eval(QmC, g0C, x0C, toC(us))); T['true'] += time.perf_counter() - t0
@@ -384,7 +486,10 @@ if __name__ == '__main__':
     U_from = None if from_us is None else np.asarray(np.load(from_us.format(seed=seed))['us'])
     lp_log = []; lp_D = lpec_d0; lp_shrink = 0; best = None; tot_it = 0; tot_ip = 0; lp_step = None
     def run_round(U_from, lpec_round):   # one PLF-V solve; round 0 from scratch (or --from-us), LPEC rounds from a step
+      if ladder_auto and not lpec_round:
+        AUTO['climbed'] = False
       sig = sig0; boosts = 0; mu = mu0
+      mult_reset()
       U = toB(jp.zeros((N, nu))) if U_from is None else toB(jp.asarray(U_from))
       X, C = sim(U, sig)
       u_inc = U; r_inc = tg(U); r0 = r_inc; its_ok = None; t_ok = None
@@ -542,6 +647,92 @@ if __name__ == '__main__':
         T['ip'] += time.perf_counter() - t0
         streams.append(dict(sig=sig_c, r_start=None, stream=stream, hand='local-' + hand, idle=int(idle.sum())))
         return hand, k_it, int(idle.sum())
+      def explore_lifted(us, sig_c, cap, guard_ref, hard_cap=400):
+        """E8 (--exc-engine lifted): an excursion at sig_c whose steps are the feasible solver's lifted steps (gaps
+        carried, cost plus nu |gaps|_1 as merit), with the IP excursion's start, read-out and stop rules."""
+        nonlocal r_inc, u_inc, its_ok, t_ok
+        t0e = time.perf_counter()
+        X_, U_, C_ = cycle_start(us, sig_c, v_restart or restart); U_ = toB(U_)
+        eps_ = toB(jp.asarray(S.base * sig_c)); P_ = toB(p_base); mu_ = toB(jp.asarray(mu0)); lam0_ = jp.zeros((N, nx))
+        J_ = float(S._cost(X_, U_, C_, P_, mu_)); reg_ = reg0
+        last_resp = 0; lp_ = 0; rp_ = r_inc; P_r = R_r = None; k_it = 0; hand = 'cap'; stream = []
+        g_ref = r0 if guard_ref is None else guard_ref
+        AL = toB(jp.asarray(ALPHAS)); nu_e = nu_merit if exc_nu == 'fixed' else 0.0; filt = []; th_max = None
+        while True:
+          k_it += 1
+          L_ = toB(S._lin(toL(X_), toL(U_), toL(C_), toL(eps_), toL(P_), toL(lam0_), toL(mu_)))
+          hb_ = L_[9]; G0_ = float(jp.sum(jp.abs(L_[8])) + jp.sum(jp.abs(hb_)))
+          if th_max is None:
+            th_max = 1e4 * max(1.0, G0_)
+          acc = False
+          for _t in range(8):
+            k_, K_, d1_, d2_, ok_, lamb_ = S._bwd(L_, U_, toB(jp.asarray(reg_)))
+            if not bool(ok_):
+              reg_ = max(reg_ * 10, 1e-4); continue
+            if exc_nu == 'lam':   # exact-penalty weight from the costates (nondecreasing within the excursion)
+              nu_e = max(nu_e, 2.0 * float(jp.max(jp.abs(lamb_))), 1.0)
+            Xb, Ub, Cb, Jb, Gb, Ab = S._fwd_lifted_b(X_, U_, C_, k_, K_, L_[0], L_[1], L_[2], hb_, AL, eps_, P_, mu_,
+                                                     jp.asarray(exc_ftb))
+            Jb, Gb = np.asarray(Jb), np.asarray(Gb)
+            if os.environ.get('E8_DEBUG'):
+              print('E8dbg', k_it, _t, f'amax {float(Ab[0]):.2e} nu {nu_e:.3g} lam {float(jp.max(jp.abs(lamb_))):.3g} reg {reg_:.1e} J0 {J_:.4g} G0 {G0_:.3g} d1 {float(d1_):.3g} d2 {float(d2_):.3g}', 'J', np.round(Jb, 4), 'G', np.round(Gb, 4), flush=True)
+            for ia, al in enumerate(ALPHAS):
+              if not np.isfinite(Jb[ia]):
+                continue
+              if exc_glob == 'filter':   # IPOPT-style filter on (gaps, cost): the IP's globalization
+                th, ph = Gb[ia], Jb[ia]
+                if th <= th_max and all(th <= (1 - 1e-5) * ti or ph <= pi - 1e-5 * ti for ti, pi in filt + [(G0_, J_)]):
+                  acc = True
+                  if not ph <= J_ + 1e-4 * al * min(float(d1_), 0.0):   # not a sufficient cost decrease: theta-type step
+                    filt.append((G0_, J_))
+                  break
+              elif Jb[ia] + nu_e * Gb[ia] < J_ + nu_e * G0_:
+                acc = True; break
+            if acc:
+              break
+            reg_ = max(reg_ * 10, 1e-4)
+            if reg_ > 1e8:
+              break
+          if not acc:
+            hand = 'converged'; break
+          X_, U_, C_, J_ = toB(Xb[ia]), toB(Ub[ia]), toB(Cb[ia]), float(Jb[ia])
+          reg_ = min(max(reg_ * LMF[al], 1e-9), 1e6)
+          if k_it % 5:
+            continue
+          # read-out every 5 iterations: best of open loop and the LQR closed loop about the iterate (as fidelity excursions)
+          Ll = S._lin(toL(X_), toL(U_), toL(C_), toL(eps_), toL(P_), toL(lam0_), toL(mu_))
+          Kl = S._tvlqr(toB(Ll[0]), toB(Ll[1]), Qd_l, R_l, PN_l)
+          t1 = time.perf_counter()
+          rs, Us_ = true_both(toC(jp.asarray([0.0, 1.0])), QmC, g0C, toC(X_), toC(U_), toC(Kl))
+          rs = np.asarray(rs); ib = int(np.argmin(rs)); r = float(rs[ib]); T['true'] += time.perf_counter() - t1
+          p = float(plan_goal(QmB, g0B, X_))
+          mis = False
+          if P_r is None:
+            P_r, R_r = p, r
+          else:
+            if P_r - p > tau * P_r and r_inc < g_ref and (R_r - r) < eta * (P_r - p):
+              mis = True
+            P_r, R_r = min(P_r, p), min(R_r, r)
+          stream.append((k_it, round(p, 5), round(r, 5)))
+          if r < r_inc:
+            first_resp = last_resp == 0
+            r_inc, u_inc, last_resp = r, toB(Us_[ib]), k_it
+            if first_resp or r_inc < (1.0 - tau) * rp_:
+              lp_, rp_ = k_it, r_inc
+            if its_ok is None and r_inc < 0.01:
+              its_ok = k_it; t_ok = time.perf_counter() - tic
+          if r_inc <= stop_tol:
+            hand = 'done'; break
+          if mis:
+            hand = 'mistrust'; break
+          if last_resp > 0 and k_it - lp_ >= ip_stall:
+            hand = 'stall'; break
+          if (last_resp == 0 and k_it >= cap) or k_it >= hard_cap:
+            hand = 'cap'; break
+        T['ip'] += time.perf_counter() - t0e
+        streams.append(dict(sig=sig_c, r_start=None, stream=stream, hand='lifted-' + hand, engine='lifted'))
+        return hand, k_it
+
       def explore(Us, Xs, Cs, sig_, boosts_, cap, stall_=None, guard_ref=None, stall_guard=False, ro_lqr=False, hard_cap=None,
                   hess_=None):
         """Lifted IP exploration (PIP loop: IP chunks of 5, true-law read-outs, ratio test, stall) from (Xs, Us, Cs)
@@ -549,13 +740,13 @@ if __name__ == '__main__':
         nonlocal r_inc, u_inc, its_ok, t_ok
         t0 = time.perf_counter()
         with _PLOCK:   # the transcription's parameters are shared by concurrent rounds
-          trans.params = Pof(boosts_)
+          trans.params = Pof_ip(boosts_)
           prm = lms._params(dict(PHip, smoothing=sig_, **({} if hess_ is None else dict(hess=[hess_, 0, 0]))))
           trans.params = p_base
         prm['hom'] = jp.asarray([sig_, 1.0, 0.0, sig_, S.base])
         Sip = HS.start(prm, toG(Xs), toG(jp.concatenate([toB(Us), toB(Cs)], 1)), 5, max_iter=max(cap, hard_cap or 0))
         P_rec = None; R_rec = None; last_acc = 0; r_ref = r_inc; lp_ = 0; rp_ = r_inc
-        use_prog = prog_stall >= 1 and stall_guard
+        use_prog = (prog_stall >= 1 and stall_guard) or prog_stall >= 2   # E2a: --prog-stall 2 everywhere
         stall_ = ip_stall if stall_ is None else stall_
         g_ref = r0 if guard_ref is None else guard_ref
         stream = []
@@ -565,7 +756,7 @@ if __name__ == '__main__':
           if ro_overlap:   # same read-out, but the next IP chunk runs on the GPU while the CPU reads out this iterate
             t1 = time.perf_counter()
             Wg_ = toB(Sip.cur.w[:, :nu]); Xg_ = toB(Sip.cur.x); Cg_ = toB(Sip.cur.w[:, nu:])
-            lin_ = lambda: S._lin(toL(Xg_), toL(Wg_), toL(Cg_), toL(jp.asarray(S.base * sig_)), toL(Pof(boosts_)),
+            lin_ = lambda: S._lin(toL(Xg_), toL(Wg_), toL(Cg_), toL(jp.asarray(S.base * sig_)), toL(Pof_ip(boosts_)),
                                   toL(jp.zeros((N, nx))), toL(jp.asarray(mu0)))
             if ro_lqr and DL is GPU:   # GPU work of the read-out goes before the chunk on the stream
               Ll = lin_(); AB_ = (toB(Ll[0]), toB(Ll[1])); jax.block_until_ready(AB_)
@@ -586,7 +777,7 @@ if __name__ == '__main__':
             T['true'] += time.perf_counter() - t1
           else:
             if ro_lqr:
-              r, Wg = readout_ip(Sip, sig_, Pof(boosts_))
+              r, Wg = readout_ip(Sip, sig_, Pof_ip(boosts_))
             else:
               Wg = Sip.cur.w[:, :nu]; r = tg(Wg)
             p = float(plan_goal(toG(Qm), toG(g0), Sip.cur.x))
@@ -653,12 +844,34 @@ if __name__ == '__main__':
           s_first = cycle_level(0)[0] if v_level in ('acc', 'tr') else sig0
           events.append(('from-us', round(r_inc, 4), s_first, cycle_level(0)[1]))
           X, U_s, C = cycle_start(U, s_first, v_restart or restart)
-          Sip, handoff, ip_its = explore(U_s, X, C, s_first, 0, v_cap if v_cap > 0 else warm_ip, v_stall if v_stall > 0 else None,
-                                         None, v_guard >= 2, ip_ro == 'lqr', (total_budget - 10) if v_guard >= 3 else None,
-                                         ip_hess_cyc)
+          if exc_only == 'lifted':
+            handoff, ip_its = explore_lifted(U, s_first, v_cap if v_cap > 0 else warm_ip, None, (total_budget - 10) if v_guard >= 3 else 400); Sip = None
+          else:
+            Sip, handoff, ip_its = explore(U_s, X, C, s_first, 0, v_cap if v_cap > 0 else warm_ip, v_stall if v_stall > 0 else None,
+                                           None, v_guard >= 2, ip_ro == 'lqr', (total_budget - 10) if v_guard >= 3 else None,
+                                           ip_hess_cyc)
           sig = s_first
+          if exc_only:   # E8: one excursion only
+            return dict(r=r_inc, u=u_inc, reason='exc-only', handoff=handoff, sig=sig, mu=mu, boosts=0, P=Pof(0), events=events,
+                        trace=[], steps=[], cycles=0, fine_cycles=0, cyc_log=[], streams=streams, its_ok=its_ok, t_ok=t_ok,
+                        it=0, ip_its=ip_its)
+        elif ladder_auto:
+          # E5: discover the top rung: explore at (sigma, barrier set) rungs in ascending order until the true law
+          # responds (a tau-decrease from the start); the responding rung becomes level 1's top rung
+          r_start = r_inc; ip_its = 0
+          for ai in range(len(AUTO_RUNGS)):
+            apply_auto(ai)
+            sig = sig0; mu = mu0
+            X, C = sim(U, sig)
+            Sip, handoff, its_a = explore(U, X, C, sig0, 0, warm_ip, ro_lqr=(ip_ro == 'lqr' and ip_ro_scope == 'all'),
+                                          stall_guard=bool(watchdog_all))
+            ip_its += its_a
+            events.append(('auto-rung', ai, sig0, round(r_inc, 4), its_a))
+            if handoff == 'done' or r_inc < (1.0 - tau) * r_start:
+              break
         else:
-          Sip, handoff, ip_its = explore(U, X, C, sig0, 0, warm_ip, ro_lqr=(ip_ro == 'lqr' and ip_ro_scope == 'all'))
+          Sip, handoff, ip_its = explore(U, X, C, sig0, 0, warm_ip, ro_lqr=(ip_ro == 'lqr' and ip_ro_scope == 'all'),
+                                         stall_guard=bool(watchdog_all))
         # PIP's model-management decision at the hand-off
         if handoff != 'done':
           if sig_ddp > 0:
@@ -666,7 +879,7 @@ if __name__ == '__main__':
           elif sig > sig_min * 1.0001 and abs(sgoal(u_inc, sig) - sgoal(u_inc, sig_min)) > kappa * r_inc:
             sig = sig * 0.1; mu = mu * (mu_fac if handoff_mucut else 1.0)
           else:
-            boosts = 1
+            boosts = 0 if term_mode == 'mult' else 1   # mult: no immediate tightening at a hand-off
           events.append(('handoff-' + handoff, ip_its, sig, boosts))
         X, U, C = start_point(Sip, sig, handoff_from)
       P = Pof(boosts)
@@ -676,255 +889,302 @@ if __name__ == '__main__':
       last_prog = 0; r_prog = r_inc
       P_rec = None; R_rec = None; alpha = None; last_change = 0; n_cycle = 0; n_v = 0
       J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu))))
-      while it < budget + v_budget * n_v and handoff != 'done' and r_inc > stop_tol and ip_its + it < total_budget + v_budget * n_v:
-        it += 1
-        eps = jp.asarray(S.base * sig)
-        t0 = time.perf_counter()
-        L = S._lin(toL(X), toL(U), toL(C), toL(eps), toL(P), toL(lam), toL(jp.asarray(mu))); L = jax.block_until_ready(L)
-        T['lin'] += time.perf_counter() - t0
-        t0 = time.perf_counter(); L = toB(L); T['xfer'] += time.perf_counter() - t0
-        fbar, hbar = L[8], L[9]
-        G0 = float(jp.sum(jp.abs(fbar)) + jp.sum(jp.abs(hbar)))
-        Jtask = J - float(jp.sum(jax.vmap(S.bar, (0, None))(C, toB(jp.asarray(mu)))))
-        accepted = False; conv = False
-        muB, epsB, PB = toB(jp.asarray(mu)), toB(eps), toB(P); ksB = toB(jp.asarray(kscale))
-        if ls_spec and ls_mode == 'par' and lm != 2:
-          # speculative attempts (same result as the sequential loop below): a rejected attempt is always followed by
-          # one at reg' = max(10 reg, 1e-4), so that backward pass is computed up front and both line searches run at
-          # once (CPU devices 0-4 and 5-9); they are evaluated in the sequential order.
-          def _ls(bw, off):
-            k_, K_ = bw[0], bw[1]
-            return [S._fwd(*[jax.device_put(t_, CPUS[off + ia]) for t_ in (X, U, C, k_, K_, fbar, hbar)],
-                           jax.device_put(jp.asarray(al), CPUS[off + ia]),
-                           *[jax.device_put(t_, CPUS[off + ia]) for t_ in (epsB, x0B, PB, muB, ksB)])
-                    for ia, al in enumerate(ALPHAS)]
-          def _bw(rg_):
-            t0 = time.perf_counter()
-            o = S._bwd(L, U, toB(jp.asarray(rg_))); T['n_bwd'] += 1
-            o = (o[0], o[1], float(o[2]), float(o[3]), bool(o[4]), o[5]); T['bwd'] += time.perf_counter() - t0
-            return o
-          def _accept(outs, bw):
-            for ia, al in enumerate(ALPHAS):
-              Jn_ = float(outs[ia][3]); ex_ = al * bw[2] + 0.5 * al * al * bw[3]
-              if G0 > 1e-9:
-                okm_ = np.isfinite(Jn_) and Jn_ + nu_merit * (1 - al) * G0 < J + nu_merit * G0
-              else:
-                okm_ = np.isfinite(Jn_) and Jn_ - J <= 1e-4 * ex_ and Jn_ < J
-              if okm_:
-                return ia, al, Jn_
-            return None
-          n_try = 0; pend = None
-          while n_try < 8:
-            bwA = pend if pend is not None else _bw(reg)
-            pend = None
-            if not bwA[4]:
-              reg = max(reg * 10, 1e-4); n_try += 1; continue
-            if G0 <= 1e-9 and abs(bwA[2]) < tol_d * max(Jtask, 1e-3):
-              conv = True; break
-            reg_n = max(reg * 10, 1e-4)
-            bwB = _bw(reg_n) if (n_try + 1 < 8 and reg_n <= 1e8) else None   # before the line searches occupy the CPUs
-            t0 = time.perf_counter()
-            outA = _ls(bwA, 0); T['n_ls'] += 1
-            outB = _ls(bwB, 5) if (bwB is not None and bwB[4] and not (G0 <= 1e-9 and abs(bwB[2]) < tol_d * max(Jtask, 1e-3))) else None
-            resA = _accept(outA, bwA)
-            if resA is not None:
-              ia, alpha, Jn = resA; k, K, d1, d2, ok, lam_n = bwA
-              Xn, Un, Cn = toB(outA[ia][0]), toB(outA[ia][1]), toB(outA[ia][2]); accepted = True
-              T['fwd'] += time.perf_counter() - t0; break
-            T['fwd'] += time.perf_counter() - t0
-            reg = reg_n; n_try += 1
-            if reg > 1e8 or bwB is None:
-              break
-            if outB is None:      # attempt B: Cholesky failure or converged -> as the sequential loop
-              pend = bwB; continue
-            T['n_ls'] += 1; t0 = time.perf_counter()
-            resB = _accept(outB, bwB)
-            T['fwd'] += time.perf_counter() - t0
-            if resB is not None:
-              ia, alpha, Jn = resB; k, K, d1, d2, ok, lam_n = bwB
-              Xn, Un, Cn = toB(outB[ia][0]), toB(outB[ia][1]), toB(outB[ia][2]); accepted = True; break
-            reg = max(reg * 10, 1e-4); n_try += 1
-            if reg > 1e8:
-              break
-        else:
-          for _try in range(8):
-            t0 = time.perf_counter()
-            k, K, d1, d2, ok, lam_n = S._bwd(L, U, toB(jp.asarray(reg)))
-            T['n_bwd'] += 1
-            d1, d2, ok = float(d1), float(d2), bool(ok)
-            T['bwd'] += time.perf_counter() - t0
-            if not ok:
+      # ---- the continuation and the level-1 search (HANDOFF_ladder_search.md §2): same statements as V14, regrouped ----
+      Cb = Cn = Cr = G0 = J_prev = Jb = Jn = Jtask = K = L = PB = Ub = Un = Ur = Us = Xb = Xn = Xr = _accept = _bw = _ls = _try = accepted = accs = al = bwA = bwB = cand = conv = d1 = d2 = dv = eps = epsB = exp = fbar = force_cycle = hand = hbar = ia = ib = inacc = its_c = k = ksB = lam_n = mis = muB = n_idle = n_try = o2 = ok = okm = outA = outB = outs = p = pend = pred_ = prod = prog_on = reg_n = resA = resB = rho_ = rs = sig_c = sv = why = None   # names of the continuation (formerly locals of the round)
+      def continue_():
+        """The feasible phase with PLF's model management, until the ladder is exhausted short of the goal ('trial': a
+        fidelity cycle is due) or the round ends ('stop')."""
+        nonlocal C, Cb, Cn, Cr, G0, J, J_prev, Jb, Jn, Jtask, K, L, P, PB, P_rec, R_rec, Sip, U, Ub, Un, Ur, Us, X, Xb, Xn, Xr, _accept, _bw, _ls, _try, accepted, accs, al, alpha, boosts, bwA, bwB, cand, conv, d1, d2, dv, eps, epsB, exp, fbar, force_cycle, hand, hbar, ia, ib, inacc, ip_its, it, its_c, its_ok, jc, k, ksB, lam, lam_n, last_acc, last_change, last_prog, mis, mu, muB, n_acc, n_cycle, n_idle, n_try, n_v, nu_r, o2, ok, okm, outA, outB, outs, p, pend, pred_, prod, prog_on, r, r_cyc, r_inc, r_prog, reason, reg, reg_n, resA, resB, rho_, rs, sig, sig_c, sv, t0, t_ok, u_inc, why
+        while it < budget + v_budget * n_v and handoff != 'done' and r_inc > stop_tol and ip_its + it < total_budget + v_budget * n_v:
+          it += 1
+          eps = jp.asarray(S.base * sig)
+          t0 = time.perf_counter()
+          L = S._lin(toL(X), toL(U), toL(C), toL(eps), toL(P), toL(lam), toL(jp.asarray(mu))); L = jax.block_until_ready(L)
+          T['lin'] += time.perf_counter() - t0
+          t0 = time.perf_counter(); L = toB(L); T['xfer'] += time.perf_counter() - t0
+          fbar, hbar = L[8], L[9]
+          G0 = float(jp.sum(jp.abs(fbar)) + jp.sum(jp.abs(hbar)))
+          Jtask = J - float(jp.sum(jax.vmap(S.bar, (0, None))(C, toB(jp.asarray(mu)))))
+          accepted = False; conv = False
+          muB, epsB, PB = toB(jp.asarray(mu)), toB(eps), toB(P); ksB = toB(jp.asarray(kscale))
+          if ls_spec and ls_mode == 'par' and lm != 2:
+            # speculative attempts (same result as the sequential loop below): a rejected attempt is always followed by
+            # one at reg' = max(10 reg, 1e-4), so that backward pass is computed up front and both line searches run at
+            # once (CPU devices 0-4 and 5-9); they are evaluated in the sequential order.
+            def _ls(bw, off):
+              k_, K_ = bw[0], bw[1]
+              return [S._fwd(*[jax.device_put(t_, CPUS[off + ia]) for t_ in (X, U, C, k_, K_, fbar, hbar)],
+                             jax.device_put(jp.asarray(al), CPUS[off + ia]),
+                             *[jax.device_put(t_, CPUS[off + ia]) for t_ in (epsB, x0B, PB, muB, ksB)])
+                      for ia, al in enumerate(ALPHAS)]
+            def _bw(rg_):
+              t0 = time.perf_counter()
+              o = S._bwd(L, U, toB(jp.asarray(rg_))); T['n_bwd'] += 1
+              o = (o[0], o[1], float(o[2]), float(o[3]), bool(o[4]), o[5]); T['bwd'] += time.perf_counter() - t0
+              return o
+            def _accept(outs, bw):
+              for ia, al in enumerate(ALPHAS):
+                Jn_ = float(outs[ia][3]); ex_ = al * bw[2] + 0.5 * al * al * bw[3]
+                if G0 > 1e-9:
+                  okm_ = np.isfinite(Jn_) and Jn_ + nu_merit * (1 - al) * G0 < J + nu_merit * G0
+                else:
+                  okm_ = np.isfinite(Jn_) and Jn_ - J <= 1e-4 * ex_ and Jn_ < J
+                if okm_:
+                  return ia, al, Jn_
+              return None
+            n_try = 0; pend = None
+            while n_try < 8:
+              bwA = pend if pend is not None else _bw(reg)
+              pend = None
+              if not bwA[4]:
+                reg = max(reg * 10, 1e-4); n_try += 1; continue
+              if G0 <= 1e-9 and abs(bwA[2]) < tol_d * max(Jtask, 1e-3):
+                conv = True; break
+              reg_n = max(reg * 10, 1e-4)
+              bwB = _bw(reg_n) if (n_try + 1 < 8 and reg_n <= 1e8) else None   # before the line searches occupy the CPUs
+              t0 = time.perf_counter()
+              outA = _ls(bwA, 0); T['n_ls'] += 1
+              outB = _ls(bwB, 5) if (bwB is not None and bwB[4] and not (G0 <= 1e-9 and abs(bwB[2]) < tol_d * max(Jtask, 1e-3))) else None
+              resA = _accept(outA, bwA)
+              if resA is not None:
+                ia, alpha, Jn = resA; k, K, d1, d2, ok, lam_n = bwA
+                Xn, Un, Cn = toB(outA[ia][0]), toB(outA[ia][1]), toB(outA[ia][2]); accepted = True
+                T['fwd'] += time.perf_counter() - t0; break
+              T['fwd'] += time.perf_counter() - t0
+              reg = reg_n; n_try += 1
+              if reg > 1e8 or bwB is None:
+                break
+              if outB is None:      # attempt B: Cholesky failure or converged -> as the sequential loop
+                pend = bwB; continue
+              T['n_ls'] += 1; t0 = time.perf_counter()
+              resB = _accept(outB, bwB)
+              T['fwd'] += time.perf_counter() - t0
+              if resB is not None:
+                ia, alpha, Jn = resB; k, K, d1, d2, ok, lam_n = bwB
+                Xn, Un, Cn = toB(outB[ia][0]), toB(outB[ia][1]), toB(outB[ia][2]); accepted = True; break
+              reg = max(reg * 10, 1e-4); n_try += 1
+              if reg > 1e8:
+                break
+          else:
+            for _try in range(8):
+              t0 = time.perf_counter()
+              k, K, d1, d2, ok, lam_n = S._bwd(L, U, toB(jp.asarray(reg)))
+              T['n_bwd'] += 1
+              d1, d2, ok = float(d1), float(d2), bool(ok)
+              T['bwd'] += time.perf_counter() - t0
+              if not ok:
+                if lm == 2:
+                  reg = max(reg * nu_r, 1e-4); nu_r *= 2.0
+                else:
+                  reg = max(reg * 10, 1e-4)
+                continue
+              if verbose:
+                print(f'  it {it} try {_try} reg {reg:.1e} d1 {d1:.3e} J {J:.4f} G0 {G0:.2e}', flush=True)
+              if G0 <= 1e-9 and abs(d1) < tol_d * max(Jtask, 1e-3):
+                conv = True; break
+              t0 = time.perf_counter()
+              T['n_ls'] += 1
+              if ls_mode == 'par':   # one step size per CPU device, dispatched concurrently
+                outs = []
+                for ia, al in enumerate(ALPHAS):
+                  dv = CPUS[ia]
+                  outs.append(S._fwd(*[jax.device_put(t_, dv) for t_ in (X, U, C, k, K, fbar, hbar)],
+                                     jax.device_put(jp.asarray(al), dv), *[jax.device_put(t_, dv) for t_ in (epsB, x0B, PB, muB, ksB)]))
+                Xb = [o[0] for o in outs]; Ub = [o[1] for o in outs]; Cb = [o[2] for o in outs]
+                Jb = np.array([float(o[3]) for o in outs])
+              elif ls_mode == 'batch':
+                Xb, Ub, Cb, Jb = S._fwd_b(X, U, C, k, K, fbar, hbar, toB(jp.asarray(ALPHAS)), epsB, x0B, PB, muB, ksB)
+                Jb = np.asarray(Jb)
+              for ia, al in enumerate(ALPHAS):
+                if ls_mode == 'seq':
+                  Xn, Un, Cn, Jn = S._fwd(X, U, C, k, K, fbar, hbar, toB(jp.asarray(al)), epsB, x0B, PB, muB, ksB)
+                  Jn = float(Jn)
+                else:
+                  Jn = float(Jb[ia])
+                exp = al * d1 + 0.5 * al * al * d2
+                if G0 > 1e-9:
+                  okm = np.isfinite(Jn) and Jn + nu_merit * (1 - al) * G0 < J + nu_merit * G0
+                else:
+                  okm = np.isfinite(Jn) and Jn - J <= 1e-4 * exp and Jn < J
+                if okm:
+                  if ls_mode != 'seq':
+                    Xn, Un, Cn = toB(Xb[ia]), toB(Ub[ia]), toB(Cb[ia])
+                  accepted = True; alpha = al; break
+              T['fwd'] += time.perf_counter() - t0
+              if accepted:
+                break
               if lm == 2:
                 reg = max(reg * nu_r, 1e-4); nu_r *= 2.0
               else:
                 reg = max(reg * 10, 1e-4)
-              continue
-            if verbose:
-              print(f'  it {it} try {_try} reg {reg:.1e} d1 {d1:.3e} J {J:.4f} G0 {G0:.2e}', flush=True)
-            if G0 <= 1e-9 and abs(d1) < tol_d * max(Jtask, 1e-3):
-              conv = True; break
-            t0 = time.perf_counter()
-            T['n_ls'] += 1
-            if ls_mode == 'par':   # one step size per CPU device, dispatched concurrently
-              outs = []
-              for ia, al in enumerate(ALPHAS):
-                dv = CPUS[ia]
-                outs.append(S._fwd(*[jax.device_put(t_, dv) for t_ in (X, U, C, k, K, fbar, hbar)],
-                                   jax.device_put(jp.asarray(al), dv), *[jax.device_put(t_, dv) for t_ in (epsB, x0B, PB, muB, ksB)]))
-              Xb = [o[0] for o in outs]; Ub = [o[1] for o in outs]; Cb = [o[2] for o in outs]
-              Jb = np.array([float(o[3]) for o in outs])
-            elif ls_mode == 'batch':
-              Xb, Ub, Cb, Jb = S._fwd_b(X, U, C, k, K, fbar, hbar, toB(jp.asarray(ALPHAS)), epsB, x0B, PB, muB, ksB)
-              Jb = np.asarray(Jb)
-            for ia, al in enumerate(ALPHAS):
-              if ls_mode == 'seq':
-                Xn, Un, Cn, Jn = S._fwd(X, U, C, k, K, fbar, hbar, toB(jp.asarray(al)), epsB, x0B, PB, muB, ksB)
-                Jn = float(Jn)
-              else:
-                Jn = float(Jb[ia])
-              exp = al * d1 + 0.5 * al * al * d2
+              if reg > 1e8:
+                break
+          mis = False
+          if accepted:
+            J_prev = J
+            X, U, C, J = Xn, Un, Cn, Jn; lam = lam_n
+            if lm == 2:   # gain-ratio rule: actual over predicted decrease of the acceptance test's merit
+              pred_ = -(alpha * d1 + 0.5 * alpha * alpha * d2)
               if G0 > 1e-9:
-                okm = np.isfinite(Jn) and Jn + nu_merit * (1 - al) * G0 < J + nu_merit * G0
+                rho_ = ((J_prev + nu_merit * G0) - (Jn + nu_merit * (1 - alpha) * G0)) / max(pred_ + nu_merit * alpha * G0, 1e-300)
               else:
-                okm = np.isfinite(Jn) and Jn - J <= 1e-4 * exp and Jn < J
-              if okm:
-                if ls_mode != 'seq':
-                  Xn, Un, Cn = toB(Xb[ia]), toB(Ub[ia]), toB(Cb[ia])
-                accepted = True; alpha = al; break
-            T['fwd'] += time.perf_counter() - t0
-            if accepted:
-              break
-            if lm == 2:
-              reg = max(reg * nu_r, 1e-4); nu_r *= 2.0
+                rho_ = (J_prev - Jn) / max(pred_, 1e-300)
+              reg = min(max(reg * max(1.0 / 3.0, 1.0 - (2.0 * rho_ - 1.0) ** 3), 1e-9), 1e6); nu_r = 2.0
+              steps_log.append((alpha, round(float(rho_), 4), float(reg)))
             else:
-              reg = max(reg * 10, 1e-4)
-            if reg > 1e8:
-              break
-        mis = False
-        if accepted:
-          J_prev = J
-          X, U, C, J = Xn, Un, Cn, Jn; lam = lam_n
-          if lm == 2:   # gain-ratio rule: actual over predicted decrease of the acceptance test's merit
-            pred_ = -(alpha * d1 + 0.5 * alpha * alpha * d2)
-            if G0 > 1e-9:
-              rho_ = ((J_prev + nu_merit * G0) - (Jn + nu_merit * (1 - alpha) * G0)) / max(pred_ + nu_merit * alpha * G0, 1e-300)
-            else:
-              rho_ = (J_prev - Jn) / max(pred_, 1e-300)
-            reg = min(max(reg * max(1.0 / 3.0, 1.0 - (2.0 * rho_ - 1.0) ** 3), 1e-9), 1e6); nu_r = 2.0
-            steps_log.append((alpha, round(float(rho_), 4), float(reg)))
+              reg = min(max(reg * LMF[alpha], 1e-9), 1e6) if lm else max(reg / 3.0, 1e-9)
+              if log_steps:
+                steps_log.append((alpha, None, float(reg)))
+            n_acc += 1
+            if n_acc % ro_every == 0:
+              t0 = time.perf_counter()
+              if readout == 'fb':
+                sv = np.array([0.0, 1.0])
+                if par_ro:   # open-loop and feedback read-outs on two CPU devices, concurrently
+                  o2 = [true_one(*[jax.device_put(t_, CPUS[5 + i]) for t_ in (jp.asarray(sv[i]), QmC, g0C, X, U, K)]) for i in range(2)]
+                  rs = np.array([float(o[0]) for o in o2]); Us = [o[1] for o in o2]
+                else:
+                  rs, Us = true_both(toC(jp.asarray(sv)), QmC, g0C, toC(X), toC(U), toC(K))
+                rs = np.asarray(rs); ib = int(np.argmin(rs)); r = float(rs[ib]); cand = toB(Us[ib])
+              else:
+                r = float(true_eval(QmC, g0C, x0C, toC(U))); cand = U
+              T['true'] += time.perf_counter() - t0
+              if r < r_inc:
+                r_inc, u_inc, last_acc = r, toB(cand), it
+                if r_inc < (1.0 - tau) * r_prog:
+                  last_prog, r_prog = it, r_inc
+                if its_ok is None and r_inc < 0.01:
+                  its_ok = ip_its + it; t_ok = time.perf_counter() - tic
+              if mistrust:   # ratio test: the (feasible, smoothed-law) plan improves, the true law does not follow
+                p = float(plan_goal(QmB, g0B, X))
+                if P_rec is None:
+                  P_rec, R_rec = p, r
+                else:
+                  if P_rec - p > tau * P_rec and r_inc < r0 and (R_rec - r) < eta * (P_rec - p) and it - last_change >= dwell:
+                    mis = True
+                  P_rec, R_rec = min(P_rec, p), min(R_rec, r)
+              trace.append((it, sig, boosts, round(J, 5), round(r, 5), round(r_inc, 5), alpha, reg))
           else:
-            reg = min(max(reg * LMF[alpha], 1e-9), 1e6) if lm else max(reg / 3.0, 1e-9)
-            if log_steps:
-              steps_log.append((alpha, None, float(reg)))
-          n_acc += 1
-          if n_acc % ro_every == 0:
-            t0 = time.perf_counter()
-            if readout == 'fb':
-              sv = np.array([0.0, 1.0])
-              if par_ro:   # open-loop and feedback read-outs on two CPU devices, concurrently
-                o2 = [true_one(*[jax.device_put(t_, CPUS[5 + i]) for t_ in (jp.asarray(sv[i]), QmC, g0C, X, U, K)]) for i in range(2)]
-                rs = np.array([float(o[0]) for o in o2]); Us = [o[1] for o in o2]
-              else:
-                rs, Us = true_both(toC(jp.asarray(sv)), QmC, g0C, toC(X), toC(U), toC(K))
-              rs = np.asarray(rs); ib = int(np.argmin(rs)); r = float(rs[ib]); cand = toB(Us[ib])
-            else:
-              r = float(true_eval(QmC, g0C, x0C, toC(U))); cand = U
-            T['true'] += time.perf_counter() - t0
-            if r < r_inc:
-              r_inc, u_inc, last_acc = r, toB(cand), it
-              if r_inc < (1.0 - tau) * r_prog:
-                last_prog, r_prog = it, r_inc
-              if its_ok is None and r_inc < 0.01:
-                its_ok = ip_its + it; t_ok = time.perf_counter() - tic
-            if mistrust:   # ratio test: the (feasible, smoothed-law) plan improves, the true law does not follow
-              p = float(plan_goal(QmB, g0B, X))
-              if P_rec is None:
-                P_rec, R_rec = p, r
-              else:
-                if P_rec - p > tau * P_rec and r_inc < r0 and (R_rec - r) < eta * (P_rec - p) and it - last_change >= dwell:
-                  mis = True
-                P_rec, R_rec = min(P_rec, p), min(R_rec, r)
-            trace.append((it, sig, boosts, round(J, 5), round(r, 5), round(r_inc, 5), alpha, reg))
-        else:
-          conv = True
-        if r_inc <= stop_tol:
-          reason = 'done'; break
-        prog_on = prog_stall == 2 or (prog_stall == 1 and n_v > 0)
-        # the feasible phase's budget ends short of the goal: as exhausted as a finished ladder -> fidelity cycle
-        force_cycle = (vcyc and v_bud_cycle and n_v < vcyc and warm == 'pip' and r_inc >= 0.01 and it >= budget + v_budget * n_v
-                       and ip_its + it < total_budget + v_budget * (n_v + 1))
-        if conv or mis or force_cycle or it - (last_prog if prog_on else last_acc) >= stall:
-          why = 'mistrust' if mis else ('converged' if conv else 'stall')
-          inacc = sig > sig_min * 1.0001 and abs(sgoal(u_inc, sig) - sgoal(u_inc, sig_min)) > kappa * r_inc
-          if not force_cycle and sig > sig_min * 1.0001 and (inacc or boosts >= max_boosts):
-            sig = max(sig_min, sig * 0.1); mu = mu * mu_fac; events.append((why + '-sharpen', it, sig))
-          elif boosts < max_boosts and not force_cycle:
-            boosts += 1; P = Pof(boosts); events.append((why + '-boost', it, boosts))
-          elif not force_cycle and cycle and n_cycle < cycle and warm == 'pip' and ip_its + it < total_budget:
-            # the feasible phase is stuck at a local minimum short of the goal: re-explore with the lifted IP
-            n_cycle += 1
-            Xr, Cr = restart_point(u_inc, sig, restart)
-            Sip, hand, its_c = explore(u_inc, Xr, Cr, sig, boosts, ip_cycle, ro_lqr=(ip_ro == 'lqr' and ip_ro_scope == 'all'))
-            ip_its += its_c; events.append(('cycle-' + hand, it, its_c))
-            if hand == 'done':
-              reason = 'done'; break
-            X, U, C = start_point(Sip, sig, handoff_from)
-            J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
-            last_acc = it; lam = jp.zeros((N, nx)); P_rec = None; last_change = it; last_prog, r_prog = it, r_inc
-            continue
-          elif vcyc and n_v < vcyc and warm == 'pip' and r_inc >= 0.01 and ip_its + it < total_budget + v_budget * (n_v + 1):
-            # fidelity cycle: the fine model is exhausted short of the goal -> re-explore from the incumbent at a coarse
-            # level with the discovery barrier; coarsen further (x10) after a cycle without sufficient decrease
-            if r_cyc is not None:
-              jc = 0 if r_inc < (1.0 - tau) * r_cyc else jc + 1
-            sig_c, accs = cycle_level(jc)
-            if v_level in ('acc', 'tr'):
-              if sig_c is None:
-                reason = 'exhausted'; break
-            else:
-              if jc > v_up:
-                reason = 'exhausted'; break
-              sig_c = sig0 * 10.0 ** jc
-            n_v += 1; r_cyc = r_inc
-            if v_local:   # coarse only on the incumbent's idle stages (LFDDP on the mixed model)
-              hand, its_c, n_idle = explore_local(u_inc, sig_c, sig, mu, v_cap if v_cap > 0 else warm_ip, r_cyc)
-              it += its_c; Sip = None
-              events.append(('local-idle', n_idle))
-            else:
-              Xr, Ur, Cr = cycle_start(u_inc, sig_c, v_restart or restart)
-              Sip, hand, its_c = explore(Ur, Xr, Cr, sig_c, 0, v_cap if v_cap > 0 else warm_ip,
-                                         v_stall if v_stall > 0 else None, r_cyc if v_guard else None, v_guard >= 2, ip_ro == 'lqr',
-                                         min(total_budget - 10, total_budget + v_budget * n_v - ip_its - it) if v_guard >= 3 else None,
-                                         ip_hess_cyc)
-              ip_its += its_c
-            prod = r_inc < r_cyc or v_reset == 'always'
-            cyc_log.append(dict(cyc=n_v, it=it, sig=sig_c, its=its_c, hand=hand, start=r_cyc, after_ip=r_inc, jc=jc,
-                                accs=[round(a_, 3) for a_ in accs]))
-            events.append(('vcycle-' + hand, it, its_c, sig_c, round(r_cyc, 4), round(r_inc, 4)))
-            if hand == 'done' or r_inc <= stop_tol:
-              reason = 'done'; break
-            if prod:   # restart the model ladder at the coarse level (PIP's hand-off decision, as after the first exploration)
-              sig, mu, boosts = (sig, mu, 0) if v_local else (sig_c, mu0, 0)   # local: the fine stages never left the fine level
-              if sig > sig_min * 1.0001 and abs(sgoal(u_inc, sig) - sgoal(u_inc, sig_min)) > kappa * r_inc:
-                sig = sig * 0.1
-              else:
-                boosts = 1
-              P = Pof(boosts)
+            conv = True
+          if r_inc <= stop_tol:
+            reason = 'done'; return 'stop'
+          prog_on = prog_stall == 2 or (prog_stall == 1 and n_v > 0)
+          # the feasible phase's budget ends short of the goal: as exhausted as a finished ladder -> fidelity cycle
+          force_cycle = (vcyc and v_bud_cycle and n_v < vcyc and warm == 'pip' and r_inc >= 0.01 and it >= budget + v_budget * n_v
+                         and ip_its + it < total_budget + v_budget * (n_v + 1))
+          if conv or mis or force_cycle or it - (last_prog if prog_on else last_acc) >= stall:
+            why = 'mistrust' if mis else ('converged' if conv else 'stall')
+            inacc = sig > sig_min * 1.0001 and abs(sgoal(u_inc, sig) - sgoal(u_inc, sig_min)) > kappa * r_inc
+            boost_left = (mult_can_update(r_inc) and max_boosts > 0) if term_mode == 'mult' else boosts < max_boosts
+            if not force_cycle and sig > sig_min * 1.0001 and (inacc or not boost_left):
+              sig = max(sig_min, sig * 0.1); mu = mu * mu_fac; events.append((why + '-sharpen', it, sig))
+            elif boost_left and not force_cycle:
+              if term_mode == 'mult':
+                mult_update(X[-1], r_inc); events.append(('mult-update', it, MS['n']))
+              boosts += 1; P = Pof(boosts); events.append((why + '-boost', it, boosts))
+            elif not force_cycle and cycle and n_cycle < cycle and warm == 'pip' and ip_its + it < total_budget:
+              # the feasible phase is stuck at a local minimum short of the goal: re-explore with the lifted IP
+              n_cycle += 1
+              Xr, Cr = restart_point(u_inc, sig, restart)
+              Sip, hand, its_c = explore(u_inc, Xr, Cr, sig, boosts, ip_cycle, ro_lqr=(ip_ro == 'lqr' and ip_ro_scope == 'all'),
+                                         stall_guard=bool(watchdog_all))
+              ip_its += its_c; events.append(('cycle-' + hand, it, its_c))
+              if hand == 'done':
+                reason = 'done'; return 'stop'
               X, U, C = start_point(Sip, sig, handoff_from)
-            else:      # nothing found: keep the fine model, next cycle one level coarser
-              jc += 1; r_cyc = None
-              if v_level not in ('acc', 'tr') and jc > v_up:
-                reason = 'exhausted'; break
-              X, U, C = start_point(None, sig, handoff_from)
-              # force the next exhaustion check immediately
-            J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
-            last_acc = it if prod else it - stall; lam = jp.zeros((N, nx)); P_rec = None; last_change = it
-            last_prog, r_prog = last_acc, r_inc
-            continue
-          else:
-            reason = 'exhausted'; break
-          U = u_inc; X, C = restart_point(U, sig, restart); J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
+              J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
+              last_acc = it; lam = jp.zeros((N, nx)); P_rec = None; last_change = it; last_prog, r_prog = it, r_inc
+              continue
+            elif vcyc and n_v < vcyc and warm == 'pip' and r_inc >= 0.01 and ip_its + it < total_budget + v_budget * (n_v + 1):
+              return 'trial'   # level 1 of the ladder search takes over (trial_level1)
+            else:
+              reason = 'exhausted'; return 'stop'
+            U = u_inc; X, C = restart_point(U, sig, restart); J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
+            last_acc = it; lam = jp.zeros((N, nx)); P_rec = None; last_change = it; last_prog, r_prog = it, r_inc
+        return 'stop'
+      def trial_level1():
+        """One trial of level 1: rung update (sufficient decrease of the last trial resets it to the top), excursion at
+        the rung, ladder restart at the rung.  'cont': continue with continue_; 'stop': the search is exhausted or done."""
+        nonlocal C, Cb, Cn, Cr, G0, J, J_prev, Jb, Jn, Jtask, K, L, P, PB, P_rec, R_rec, Sip, U, Ub, Un, Ur, Us, X, Xb, Xn, Xr, _accept, _bw, _ls, _try, accepted, accs, al, alpha, boosts, bwA, bwB, cand, conv, d1, d2, dv, eps, epsB, exp, fbar, force_cycle, hand, hbar, ia, ib, inacc, ip_its, it, its_c, its_ok, jc, k, ksB, lam, lam_n, last_acc, last_change, last_prog, mis, mu, muB, n_acc, n_cycle, n_idle, n_try, n_v, nu_r, o2, ok, okm, outA, outB, outs, p, pend, pred_, prod, prog_on, r, r_cyc, r_inc, r_prog, reason, reg, reg_n, resA, resB, rho_, rs, sig, sig_c, sv, t0, t_ok, u_inc, why
+        # fidelity cycle: the fine model is exhausted short of the goal -> re-explore from the incumbent at a coarse
+        # level with the discovery barrier; coarsen further (x10) after a cycle without sufficient decrease
+        if r_cyc is not None:
+          jc = 0 if r_inc < (1.0 - tau) * r_cyc else jc + 1
+        sig_c, accs = cycle_level(jc)
+        if v_level in ('acc', 'tr') and sig_c is None and fine_rung and jc == n_rungs_sig:
+          # E2c: the starred rung = PLF's fine cycle (exploration at the current fine model, cap ip_cycle, open-loop
+          # read-out, base curvature, current terminal term), then the continuation without a ladder restart
+          n_v += 1; r_cyc = r_inc
+          Xr, Cr = restart_point(u_inc, sig, restart)
+          Sip, hand, its_c = explore(u_inc, Xr, Cr, sig, boosts, ip_cycle, stall_guard=bool(watchdog_all))
+          ip_its += its_c
+          cyc_log.append(dict(cyc=n_v, it=it, sig=sig, its=its_c, hand=hand, start=r_cyc, after_ip=r_inc, jc=jc, star=True))
+          events.append(('vcycle*-' + hand, it, its_c, sig, round(r_cyc, 4), round(r_inc, 4)))
+          if hand == 'done' or r_inc <= stop_tol:
+            reason = 'done'; return 'stop'
+          X, U, C = start_point(Sip, sig, handoff_from)
+          J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
           last_acc = it; lam = jp.zeros((N, nx)); P_rec = None; last_change = it; last_prog, r_prog = it, r_inc
+          return 'cont'
+        if v_level in ('acc', 'tr') and sig_c is None and ladder_auto and not AUTO['climbed'] and AUTO['idx'] + 1 < len(AUTO_RUNGS):
+          AUTO['climbed'] = True; apply_auto(AUTO['idx'] + 1); jc = 0       # E5: one rung above the top, once
+          sig_c, accs = cycle_level(jc)
+          events.append(('auto-climb', AUTO['idx'], sig0))
+        if v_level in ('acc', 'tr'):
+          if sig_c is None:
+            reason = 'exhausted'; return 'stop'
+        else:
+          if jc > v_up:
+            reason = 'exhausted'; return 'stop'
+          sig_c = sig0 * 10.0 ** jc
+        if lpec_round and lpec_cyc >= 0 and n_v >= lpec_cyc:   # E6: at most lpec_cyc cycles in an LPEC round
+          events.append(('lpec-cyc-cap', it, n_v)); reason = 'lpec-cap'; return 'stop'
+        n_v += 1; r_cyc = r_inc
+        if save_cyc and os.environ.get('SAVE_DIR'):   # E8 inputs: the incumbent at every cycle start
+          np.savez(f"{os.environ['SAVE_DIR']}/{label}_{name}_{seed}_c{n_v}.npz", us=np.asarray(u_inc), r=r_inc, sig=sig_c)
+        if exc_engine == 'lifted':
+          hand, its_c = explore_lifted(u_inc, sig_c, v_cap if v_cap > 0 else warm_ip, r_cyc,
+                                       min(total_budget - 10, total_budget + v_budget * n_v - ip_its - it))
+          Sip = None; ip_its += its_c
+        elif v_local:   # coarse only on the incumbent's idle stages (LFDDP on the mixed model)
+          hand, its_c, n_idle = explore_local(u_inc, sig_c, sig, mu, v_cap if v_cap > 0 else warm_ip, r_cyc)
+          it += its_c; Sip = None
+          events.append(('local-idle', n_idle))
+        else:
+          Xr, Ur, Cr = cycle_start(u_inc, sig_c, v_restart or restart)
+          Sip, hand, its_c = explore(Ur, Xr, Cr, sig_c, 0, v_cap if v_cap > 0 else warm_ip,
+                                     v_stall if v_stall > 0 else None, r_cyc if v_guard else None, v_guard >= 2, ip_ro == 'lqr',
+                                     min(total_budget - 10, total_budget + v_budget * n_v - ip_its - it) if v_guard >= 3 else None,
+                                     ip_hess_cyc)
+          ip_its += its_c
+        prod = r_inc < r_cyc or v_reset == 'always'
+        cyc_log.append(dict(cyc=n_v, it=it, sig=sig_c, its=its_c, hand=hand, start=r_cyc, after_ip=r_inc, jc=jc,
+                            accs=[round(a_, 3) for a_ in accs]))
+        events.append(('vcycle-' + hand, it, its_c, sig_c, round(r_cyc, 4), round(r_inc, 4)))
+        if hand == 'done' or r_inc <= stop_tol:
+          reason = 'done'; return 'stop'
+        if prod:   # restart the model ladder at the coarse level (PIP's hand-off decision, as after the first exploration)
+          sig, mu, boosts = (sig, mu, 0) if v_local else (sig_c, mu0, 0)   # local: the fine stages never left the fine level
+          mult_reset()
+          if sig > sig_min * 1.0001 and abs(sgoal(u_inc, sig) - sgoal(u_inc, sig_min)) > kappa * r_inc:
+            sig = sig * 0.1
+          else:
+            boosts = 0 if term_mode == 'mult' else 1   # mult: no immediate tightening at a hand-off
+          P = Pof(boosts)
+          X, U, C = start_point(Sip, sig, handoff_from)
+        else:      # nothing found: keep the fine model, next cycle one level coarser
+          jc += 1; r_cyc = None
+          if v_level not in ('acc', 'tr') and jc > v_up:
+            reason = 'exhausted'; return 'stop'
+          X, U, C = start_point(None, sig, handoff_from)
+          # force the next exhaustion check immediately
+        J = float(S._cost(X, U, C, toB(P), toB(jp.asarray(mu)))); reg = reg0
+        last_acc = it if prod else it - stall; lam = jp.zeros((N, nx)); P_rec = None; last_change = it
+        last_prog, r_prog = last_acc, r_inc
+        return 'cont'
+      while continue_() == 'trial':
+        if trial_level1() == 'stop':
+          break
       if handoff == 'done' or r_inc <= stop_tol:
         reason = 'done'
       return dict(r=r_inc, u=u_inc, reason=reason, handoff=handoff, sig=sig, mu=mu, boosts=boosts, P=P, events=events,
@@ -982,7 +1242,8 @@ if __name__ == '__main__':
       t_b = time.perf_counter() - t_rnd; r_ref = best['r']
       for (ent, _), o in zip(steps, outs):
         tot_it += o['it']; tot_ip += o['ip_its']
-        ent.update(goal=round(o['r'], 4), t_round=round(t_b, 1), accepted=bool(o['r'] < (1.0 - tau) * r_ref), parallel=len(steps))
+        ent.update(goal=round(o['r'], 4), t_round=round(t_b, 1), accepted=bool(o['r'] < (1.0 - tau) * r_ref), parallel=len(steps),
+                   reason=o['reason'], it=o['it'], ip_its=o['ip_its'], cyc_log=o['cyc_log'], r_ref=r_ref)   # E6: per-round logs
         lp_log.append(ent)
       ob = min(outs, key=lambda o: o['r'])
       if ob['r'] < best['r']:
@@ -1001,6 +1262,18 @@ if __name__ == '__main__':
     events, trace, n_v, n_cycle, cyc_log, streams = (best[k_] for k_ in ('events', 'trace', 'cycles', 'fine_cycles', 'cyc_log', 'streams'))
     its_ok, t_ok = best['its_ok'], best['t_ok']
     it, ip_its = tot_it, tot_ip
+    # E7: stop class of the returned plan
+    _lp_stop = lp_log[-1].get('stop') if lp_log else None
+    if r_inc <= stop_tol:
+      stop_class = 'goal'
+    elif _lp_stop == 'B-stationary':
+      stop_class = 'stationary-B0'
+    elif _lp_stop == 'no improvement':
+      stop_class = 'stationary'
+    elif not lpec and best['reason'] == 'exhausted':
+      stop_class = 'stationary-L1'
+    else:
+      stop_class = 'budget'
     t = time.perf_counter() - tic
     # end-of-run diagnostics of the returned plan (not timed): is a miss an optimization stop or a model mismatch?
     Pd = toB(P); mud = toB(jp.asarray(mu))
@@ -1017,7 +1290,7 @@ if __name__ == '__main__':
     row = dict(task=name, label=label, seed=seed, true_goal=r_inc, true_ok=bool(r_inc < 0.01), it=it, ip_its=ip_its,
                its_ok=its_ok, t_ok=t_ok, reason=reason, handoff=handoff, time=t, diag=diag,
                timing={k_: round(v, 3) for k_, v in T.items()}, events=events, trace=trace, cfg=cfg,
-               cycles=n_v, fine_cycles=n_cycle, cyc_log=cyc_log, streams=streams, lpec=lp_log, steps=best.get('steps'))
+               cycles=n_v, fine_cycles=n_cycle, cyc_log=cyc_log, streams=streams, lpec=lp_log, steps=best.get('steps'), stop_class=stop_class)
     print(json.dumps({k_: v for k_, v in row.items() if k_ not in ('trace', 'cfg', 'streams')}), flush=True)
     with open(out, 'a') as fo:
       fo.write(json.dumps(row) + '\n')

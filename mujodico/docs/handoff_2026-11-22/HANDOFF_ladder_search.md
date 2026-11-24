@@ -412,7 +412,7 @@ Code and experiments:
 - [ ] T7. E6: logged rounds on the stuck-plan set; replay; `--lpec-cyc`; `--lpec-reset`.
 - [ ] T8. E7: stop classes and the fixed-point test.
 - [ ] T9. `--ladder auto`; E5.
-- [ ] T10. `--exc-engine lifted`; E8 (stretch).
+- [x] T10. `--exc-engine lifted`; E8 (stretch). Done, negative (§12.2).
 - [ ] T11. E9 for each adopted flag; flags file; results section appended to this document (§10, in the format of fidelity §10–§12).
 
 ## 10. File map
@@ -436,6 +436,8 @@ Code and experiments:
 ## 11. Results (2026-11-23, late evening)
 
 Done: T0, the reference check behind H1, and E3. Not started: T1 (the `excursion` / `continue_` / `search` refactor, E1), E2, E4–E8. Rows in `results/ladder/` (`e3.jsonl`, `e3c.jsonl`; `e3b_rho_bug.jsonl` is invalid, see below), launcher `scripts/lplf.sh`, driver copy `scripts/lfddp_l.py`, statistics `scripts/e3_stats.py`.
+
+(Superseded by §12: E1, E2, E4–E8 done.)
 
 ### 11.1 T0: the write-up
 
@@ -471,3 +473,165 @@ V15 = V14 + `--lpec-solver fast --lpec-par 3 --lpec-par-lazy 1` (structured QP f
 ### 11.5 Next
 
 T1/E1 (the refactor into `excursion` / `continue_` / `search`, equivalence under `DET=1` against `lfddp_v.py`), then E2 (one stall rule, watchdog everywhere, fine cycles as a rung), E4 (terminal multiplier), E6 (from V15), E7, E5, E8 as planned. Remove `--lm 2` from consideration.
+
+## 12. Results (2026-11-23, night): E1, E8
+
+Driver copies (each frozen for its experiment; `scripts/lfddp_l.py` is the development copy and contains all of them): `lfddp_l_e1.py` (E1: the refactor plus the E3 flags), `lfddp_l_f.py` (E2, E4–E7: all flags of §12–§13 below), `lfddp_l_e8.py`, `lfddp_l_e8b.py` (E8). Statistics: `e1_cmp.py`, `lad_stats.py` (E2/E4/E5), `e6_stats.py`, `e7_stats.py`, `e8_stats.py`.
+
+### 12.1 E1: equivalence of the refactor (H1) — confirmed
+
+The round body of `lfddp_l.py` is now the search of §2: `continue_()` returns `trial` or `stop`, `trial_level1()` returns `cont` or `stop`, and the driver is `while continue_() == 'trial': if trial_level1() == 'stop': break`; level 2 is the existing `run_round` loop. Under `DET=1` with V14 flags (`chain_e1.sh`, rows `results/vcycle/e1.jsonl`), `lfddp_v.py` and `lfddp_l_e1.py` on PushT2dHard 0:6, PushBox2d 0:6, fingers-hard 0:6, knob 8:12, the LPEC rescue of T-hard 25 from its stuck plan, and the pen: **24/24 identical** in goals, LFDDP and IP iteration counts, events, cycle logs and LPEC decisions. The only differences are the wall-clock fields `t_round` and `t_lpec` of two LPEC logs. Both drivers solve 24/24.
+
+### 12.2 E8: one solver (H8) — falsified; two solvers stay (F8.3)
+
+Implementation (`lfddp_l.py`): `LFDDP.fwd_lifted` as specified in §4.8 (linear rollout of the Riccati policy on (A, B, a), δγ = Φ_x δx + Φ_u δu − h̄, gaps carried; batched over the step-size grid), `explore_lifted` (start, read-outs every 5 iterations with the TVLQR closed loop, watchdog, progress stall, ratio test: all as the IP excursion), `--exc-engine lifted` (cycle excursions), `--exc-only ip|lifted` (one σ0 excursion from `--from-us`, then return), `--save-cyc 1` (incumbent at every cycle start). One correction to the §4.8 recipe: δu must be clipped inside the linear rollout (`δu = clip(u + k + K δx) − u`), otherwise δx is inconsistent with the clipped controls. Verified: for α → 0 the new gaps are (1 − α) G0 to first order (α = 1e-4: 0.37610 against 0.37596).
+
+Inputs: 48 cycle-start incumbents saved from PushT2dHard 0:30 (V15 flags, `--lpec 0`), the six stuck plans of E6 (`GCn_*`), and the three pen slides (PV11c, PV11d, PV2). One σ0 excursion from each per engine (`chain_e8.sh`, `chain_e8b.sh`, rows `results/ladder/e8.jsonl`). Productive = true goal lowered by more than 1e-4 (the start goal is logged to four decimals).
+
+| Engine | T: productive | T: mean gain | its to first response (med) | Pen: productive | ms/it (T steady / pen) |
+|---|---|---|---|---|---|
+| lifted IP (reference) | **21/54 (38.9 %)** | **0.116** | 20 | **3/3** | 186 / 342 |
+| carried gaps, merit ν = 1e3 (§4.8) | 0/54 | 0 | — | 0/3 | 173 / 371 |
+| carried gaps, ν = 2‖λ‖∞ | 0/54 | 0 | — | 0/3 | — / 388 |
+| carried gaps, filter (F8.2) | 8/54 (14.8 %) | 0.003 | 5 | 0/3 | — / 572 |
+| carried gaps, filter + fraction-to-boundary step (F8.1 + F8.2) | 9/54 (16.7 %) | 0.003 | 5 | 0/3 | 370 / 595 |
+
+(One-iteration rows are compile-dominated; ms/it is taken from rows with at least 20 iterations where there are any.)
+
+Why it fails, from the per-step log (`E8_DEBUG=1`, T-hard 25 stuck plan):
+- **Merit.** The Riccati step is large (predicted decrease 83 on a cost of 150), and the gaps grow as roughly 500 α² along it: α = 0.01 already raises ‖gaps‖₁ from 0.38 to 0.43, α = 0.1 to 14. With any exact-penalty weight the merit accepts only α ≈ 1e-3, so the regularization climbs to its cap and the excursion ends without a read-out. Weighting by the costates (ν ≈ 800) changes nothing; the merit weight is not the lever.
+- **Filter.** The IP's acceptance takes the first step (cost 150 → 147, gaps 0.4 → 1.2). At the new point every step of the grid sends a normal force through zero.
+- **Fraction-to-boundary.** Scaling the grid by the largest step that keeps every normal force at 0.5 % of its value makes the steps feasible, and the step collapses to α ≈ 1e-7 within four iterations: the jamming of a primal barrier method near the boundary. The primal-dual IP avoids it through its dual variables (Σ = z/s instead of μ/n²).
+- Where both gain, the IP's gain is 5–30× larger (T-hard 3 c1: 0.528 → 0.125 against → 0.500; T-hard 10 c2: 0.322 → 0.044 against → 0.285). On three incumbents only the carried-gap arms gained, by at most 0.03.
+
+Conclusion per F8.3: two solvers stay, described as **one linearization with two globalizations**. The discovery ingredient of the IP is its primal-dual treatment of the force bounds (with its filter), not the carried gaps or the barrier on the lifted force by themselves. A primal-dual carried-gap pass would be the IP. Not pursued further; T10 closed.
+
+### 12.3 E2: one rule set (H2) — passes on solve rate in one run; candidate `abc`, gates (E9) pending
+
+Driver `lfddp_l_f.py`, V15 flags, one run per arm (`chain_lad.sh`, rows `results/ladder/e2.jsonl`, `lad_stats.py`). Arms: a = `--prog-stall 2` (the sufficient-decrease stall from the first excursion on); b = `--watchdog-all 1` (the watchdog in the first exploration and in the fine cycles); c = `--cycle 0 --fine-rung 1` (the fine cycles become the starred bottom rung of level 1); abc = all three.
+
+| Task | Arm | Solved | Median its | Median s | Stop classes |
+|---|---|---|---|---|---|
+| fingers-hard 0:24 | base / a / b / c / abc | 24 / 24 / 24 / 24 / 24 | 49 / 49 / 50 / 49 / 49 | 4.8 / 2.8 / 2.8 / 2.7 / 2.8 | goal 21–24, rest budget (solved, between stop and success tolerance) |
+| PushBox2d 0:6 | base / a / b / c / abc | 6 each | 62 / 62 / 72 / 62 / 72 | 1.3–1.8 | goal 6 |
+| PushT2dHard 0:12 | base / a / b / c / abc | 12 each | 254 / 330 / 308 / 286 / **192** | 8.9 / 9.0 / 9.7 / 8.5 / **4.8** | goal 10–12 |
+| AllegroPen ×3 | base / a / b / c / abc | 3 each | 644 / 389 / 498 / 882 / 440 | 112 / 75 / 84 / 130 / 73 | |
+
+Excursions over all instances (count; ended by mistrust / stall / cap; cap without any true-law response; LFDDP + IP iterations in total):
+
+| Arm | Excursions | mistrust / stall / cap | cap without response | Total its |
+|---|---|---|---|---|
+| base | 107 | 60 / 23 / 18 | 12 | 13 877 |
+| a | 104 | 62 / 19 / 15 | 14 | 16 986 (+22 %) |
+| b | 94 | 57 / 13 / 15 | 12 | 11 576 (−17 %) |
+| c | 88 | 46 / 15 / 27 | 27 | 15 615 (+13 %) |
+| abc | 77 | 39 / 17 / 21 | 21 | 14 318 (+3 %) |
+
+- No arm loses a seed (45/45 each). H2's solve-rate criterion holds in this run; its second run is the E9 gate.
+- Medians: abc is −24 % on the T and −32 % on the pen, +16 % on PushBox2d (62 → 72 iterations, six seeds), flat on fingers-hard. Arm a alone is +30 % on the T. With 3–12 seeds per cell and one run, differences under ~25 % are within run-to-run spread (the pen varies ×2 between runs of one arm, §11.3).
+- c and abc replace the fine cycles by the bottom rung: no fine cycles, more cycles, and every capped excursion is one without a response (the bottom rung's excursions that find nothing end at the cap, as intended).
+- Times: base ran first and alongside the E8 runs (cold compile cache, shared GPU), so its seconds are inflated; compare iterations.
+- Verdict: adopt **abc** as the candidate unified rule set (one stall rule, the watchdog everywhere, fine cycles as a rung), subject to E9 (two runs of the gate, the hard set, pen ×5). F2's expected failure (a long discovery on fingers-hard under the watchdog) did not occur: fingers-hard medians are unchanged.
+
+### 12.4 E4: terminal multiplier (H3) — falsified on iterations; keep the boosts (F4.3)
+
+`--term mult` (`lfddp_l_f.py`): the terminal cost gets a linear term ν·(x_T − x_goal) (quaternion blocks: a scalar ν_q on 1 − (q·q_g)²), updated ν ← ν + 2 Q_f e at the points where compat would boost, and only if the last update gave sufficient decrease of r* (`mult_can_update`); the IP calls keep the base terminal weight (`PLF_FN_EXPORT=0`: the exported cost functions do not take the multiplier). `--boosts 0` is the control with neither. One run each; base = E2base rows (knob base: `E4base` = E2base flags on the knob). Rows `results/ladder/e4.jsonl`.
+
+| Task | base | mult | no boost, no multiplier |
+|---|---|---|---|
+| fingers-hard 0:24 | 24/24, 49 its | 24/24, 45 | 24/24, 47 |
+| PushBox2d 0:6 | 6/6, **62** | 6/6, **122** | 6/6, **182** |
+| PushT2dHard 0:12 | **12/12**, 254 | **11/12** (seed 0, 0.748, stationary-B0), 259 | **11/12** (seed 0, 1.052, stationary-B0), 189 |
+| knob 0:20 | 20/20, 39 | 20/20, 42 | 20/20, 39 |
+| AllegroPen ×3 | 3/3, 644 | 3/3, 474 | 3/3, 625 |
+
+(Median LFDDP + IP iterations.)
+
+- Solve rate: within H3's tolerance (one seed lost on one task), but it is the same T seed that the no-boost control loses: on T-hard 0 the boosts are what solve it, and the multiplier does not replace them.
+- Iterations: PushBox2d doubles (62 → 122; with neither, 182): the boosts close the terminal error faster than seven sufficient-decrease-gated multiplier updates per instance (mult-update events: 7 on the first PushBox2d seed). H3's criterion "iterations not higher" fails.
+- Oscillation: ν is not logged (only update counts), so the sign-change criterion was not evaluated; not needed for the verdict.
+- Fingers-hard, knob and pen do not depend on the terminal mechanism at all (the no-boost control matches base), so the boosts' role is confined to the T and the pushers.
+- Verdict per F4.3: keep the boosts and describe them as penalty continuation with the trigger "accurate model, stalled short of the goal". F4.1–F4.2 (half-step multiplier; multiplier plus ×10 of the weight on no decrease) remain untried; they target exactly the PushBox2d slowdown and T-hard 0 and would need a run of their own.
+
+### 12.5 E6: LPEC rounds (H6) — passes in replay, fails in the rerun; keep the full nested search (F6)
+
+Step 1, logged rescues (V15 flags, `lfddp_l_f.py`; rows `results/ladder/e6.jsonl`; each LPEC round entry now carries `reason`, `it`, `ip_its`, `cyc_log`, `r_ref`). The six T stuck plans, T-hard 0 and 4 from scratch, and the three pen slides: **11/11 solved**. The pen slides need no LPEC round under V15 (the first exploration from the slide solves them: PV11c 86 s, PV11d 115 s, PV2 44 s). The six T stuck plans: 376 s in total (V15 in fidelity §13: 410 s for the 7-plan set). Wall times in this step ran next to another session's 1 GB GPU job (19:29–19:45) and are indicative only.
+
+Step 2, replay (`e6_stats.py`): 21 logged rounds, 19 accepted. A round capped at c cycles returns the incumbent at the start of cycle c + 1.
+
+| Cap c | Accepted (of 19) | Same decision as uncapped (of 21) | Iterations of the rounds |
+|---|---|---|---|
+| 0 | 11 | 13 | 3 617 |
+| 1 | 17 | 19 | 5 401 |
+| 2 | **19** | **21** | **6 686 (−34 %)** |
+| 4 | 19 | 21 | 8 479 |
+| none | 19 | 21 | 10 115 |
+
+c\* = 2 in replay; at the round level H6's criterion holds (no accepted round lost, −34 % iterations). But a capped round is accepted at a worse goal (T-hard 23 round 1: 0.062 instead of 0.0018; T-hard 0: 0.018 / 0.32 / 0.49 instead of 0.007 / 0.001 / 0.003), so the replay's saving is an upper bound.
+
+Step 3, rerun with the cap (`--lpec-cyc c` in `lfddp_l.py`, frozen as `lfddp_l_e6.py`: an LPEC round stops before its (c + 1)-th cycle with reason `lpec-cap`; `chain_e6cap.sh`, rows `results/ladder/e6cap.jsonl`), the eight T instances:
+
+| Arm | Solved | Iterations | Seconds | LPEC rounds |
+|---|---|---|---|---|
+| uncapped (step 1) | **8/8** | 14 653 | 571 | 21 |
+| `--lpec-cyc 2` | 7/8 (T-hard 4: 0.093) | 13 893 (−5 %) | 667 | 30 |
+| `--lpec-cyc 3` (c\* + 1) | 7/8 (T-hard 4: 0.179) | 13 075 (−11 %) | 574 | 21 |
+
+- T-hard 4 is lost under both caps. Round 0 (from scratch, not deterministic) handed the rounds a different incumbent in each run (r_ref 0.483 / 0.335 / 0.179). From those starts the capped rounds stopped at the cap without passing (cap 3: three rounds, none accepted, the level-2 search stops after three strikes). The uncapped run's accepted rounds needed 2, 8 and 9 cycles. Rounds that need many cycles exist, and the replay only saw those that the uncapped run happened to take.
+- The saving is 5–11 % of iterations and none in time (capped rounds that fail trigger more rounds; lazy concurrent rounds already overlap them), far from the 30 % of H6.
+- Verdict: H6 does not hold as a rule (F6). Keep the full nested search in each round; `--lpec-cyc` stays off. The LPEC instance time was already roughly halved by V15 (structured QP, lazy concurrent radii). D1 is not pursued.
+
+### 12.6 E7: stop classes and fixed points (H7) — not testable on this set; one classification fix
+
+`DET=1`, V15 flags, `lfddp_l_f.py` (row field `stop_class`), PushT2dHard 0:30 and PushT2dHardLong 0:18, then restarts from every non-goal plan and from five goal plans (`chain_lad.sh`, rows `results/ladder/e7.jsonl`, `e7_stats.py`).
+
+| Task | Solved | Stop classes |
+|---|---|---|
+| PushT2dHard 0:30 | **30/30** | goal 26, budget 4 |
+| PushT2dHardLong 0:18 | **18/18** | goal 17, budget 1 |
+
+Restarts from the returned plan (same flags, deterministic ops):
+
+| Class | n | Same plan (goal within 1 %, controls within 1e-6) | Improved |
+|---|---|---|---|
+| goal (sanity check; seeds 1, 2, 3, 5 — seed 7 of the planned five returned as budget) | 4 | 4 (bitwise, 14 s each) | 0 |
+| budget | 5 | 1 (T-hard 4) | 4 (T-hard 7: 0.0094 → 0.0030; 19, 24, Long 0: 2–10 % lower) |
+
+- **H7 cannot be tested here.** V15 with deterministic ops solves all 48 instances, so the two stationary classes are empty (the earlier misses on these tasks were all rescued by the LPEC rounds of V14/V15). To test H7, the same procedure must run on a set with stationary stops: V13 flags without the LPEC (`--lpec 0`), where fidelity §10 left misses, or the hard tasks of the other handoff.
+- The budget plans behave as their class says (4/5 improve on restart). The exception, T-hard 4 (0.0042), is a classification error, not a non-monotone restart. Level 2 runs only while r ≥ 0.01, the success tolerance (`lfddp_l_f.py:1060`). A plan whose goal lies between the stop tolerance (0.003) and the success tolerance therefore never reaches level 2, and if level 1 is exhausted it is a level-1 fixed point: the restart returned it bitwise after 186 iterations without an LPEC round. **Fix:** add the class `solved-L1` (stop tolerance not reached, success tolerance reached, level 1 exhausted). The solved `budget` rows of E2/E4 (fingers-hard 3–9 per arm) are of the same kind.
+
+### 12.7 E5: discovered top rung (H5) — passes on solve rate in both runs; fails the iteration criterion on the knob and the T
+
+`--ladder auto` (`lfddp_l_f.py`, V15 flags): the first exploration tries the rungs (σ0, barrier set) = (1, 1e-3), (1, 1e-1), (10, 1e-1) in ascending order until the true law responds (a τ-decrease), and level 1 climbs one rung above the top once when exhausted. `apply_auto` overrides σ0, μ0 and the IP's μ_init/μ_min of the per-task block; the remaining class flags of `lplf.sh` (hand-off start, restart mode, linearization device) are not barrier or σ0 entries and stay. Two runs, rows `results/ladder/e5.jsonl`, `e5_stats.py`. Reference: V14 gate rows (`results/vcycle/gate_gn.jsonl`, GN1) and V14 on PushT2dHard 0:12 (`final.jsonl`). Run-1 times of PushSphere2d, PushSphere2dHard and PushMultiSphere2d overlapped another session's GPU job; their times are taken from run 2.
+
+| Task | Solved run 1 / run 2 | V14 | Responding rung 0 / 1 / 2 (per run) | Median its (E5 / V14) | Median s (E5 run 2 / V14) | H5 threshold |
+|---|---|---|---|---|---|---|
+| PushSphere2d 0:10 | 10 / 10 | 10 | 9 / 1 / 0 | 32 / 34 | 0.5 / 0.5 | ≥ 9 ✓ |
+| PushSphere2dHard 0:10 | 10 / 10 | 10 | 9 / 1 / 0 | 20 / 25 | 0.4 / 0.3 | |
+| PushMultiSphere2d 0:6 | 6 / 6 | 6 | 6 / 0 / 0 | 25 / 38 | 0.4 / 0.6 | |
+| PushBox2d 0:6 | 6 / 6 | 6 | 4 / 2 / 0 | 82 / 68 (+21 %) | 1.6 / 1.2 | ≥ 5 ✓, +25 % ✓ |
+| knob 0:20 | 20 / 20 | 20 | 6 / 10 / 4 | **80 / 35 (+129 %)** | 1.9 / 1.1 | ≥ 18 ✓, +25 % ✗ |
+| fingers 0:24 | 24 / 24 | 24 | 24 / 0 / 0 | 25 / 22 (+14 %) | 0.7 / 0.5 | +10 % ✗ (3 its) |
+| fingers-hard 0:24 | 24 / 24 | 24 | 24 / 0 / 0 | **50 / 70 (−29 %)** | 2.9 / 4.7 | ≥ 23 ✓ |
+| AllegroBallTableHard 0:10 | 10 / 10 | 10 | 10 / 0 / 0 | 28 / 28 | 1.0 / 0.9 | |
+| PushT2dHard 0:12 | **12 / 12** | 11 | 4 / 1 / 4 and 4 / 1 / 3 (rest: events of an LPEC round) | **438–474 / 278 (+60–70 %)** | 12.6 / 7.1 | within 2 ✓ |
+
+- **Solve rate:** one start for all nine tasks, no per-task barrier or σ0 entries, 122/122 in both runs. Every H5 solve threshold holds, and the T is one seed better than V14.
+- **Iterations:** the median criterion fails on the knob (+129 %) and the T (+60–70 %); fingers is +3 iterations; fingers-hard is 29 % faster (its V14 block used the barrier 1e-3 at σ0 = 1, the same as rung 0, and the gain is V15's). The cost is the climb: the knob responds at rung 0 on only 6 of 20 seeds and spends a median 55 IP iterations before its response, against the 10-iteration σ0 = 10 start of its per-task block. Same for the T (median 48–55 before the response; 4 of 12 need rung 2).
+- **No time comparison should be read across code versions without care:** E5 runs V15 (structured LPEC QP, lazy radii), the reference is V14.
+- **Verdict:** the top rung *can* be discovered (the part of H5 that matters for the method's statement: the per-task block of σ0 and barrier can be removed without losing a seed), at an iteration cost on the tasks that need a coarse start. Per F5.1, the remaining lever is to climb earlier: move to the next rung when the first response is weaker than 25 % of r(0), or cap a rung's discovery at 20–30 iterations before climbing. Untried; it targets exactly the knob and T overhead.
+
+### 12.8 Summary and next
+
+| Experiment | Hypothesis | Result | Decision |
+|---|---|---|---|
+| E1 | H1: the refactor is the same algorithm | 24/24 identical under `DET=1` | Adopted (`lfddp_l.py` is the ladder-search driver) |
+| E2 | H2: one rule set | 45/45 per arm, one run; abc −24 % its on the T, −32 % on the pen, +16 % on PushBox2d | Candidate abc; E9 gates pending |
+| E3 | H4: gain-ratio LM | falsified (§11.3) | Table stays |
+| E4 | H3: terminal multiplier | loses T-hard 0 like the no-boost control; PushBox2d ×2 its | Keep the boosts (F4.3); F4.1–F4.2 untried |
+| E5 | H5: discovered top rung | 122/122 in both runs, no per-task σ0/barrier; knob +129 %, T +60 % its | Solve-rate part holds; iteration part needs F5.1 (earlier climb) |
+| E6 | H6: early round decision | replay passes (cap 2: −34 %), rerun fails (T-hard 4 lost, −5 to −11 % its, no time saving) | Keep the full nested search (F6) |
+| E7 | H7: fixed points | all 48 solved: stationary classes empty, untestable; goal plans bitwise fixed; 4/5 budget plans improve | Add the class `solved-L1`; test H7 on a set with misses (`--lpec 0`) |
+| E8 | H8: one solver | lifted 0 % productive vs IP 39 % (T); 0/3 pen; filter and fraction-to-boundary variants 15–17 %, gain 0.003 vs 0.116 | Two solvers stay (F8.3) |
+
+Next, in order: E9 gates for abc (two runs of the gate, the hard set, pen ×5); F5.1 (earlier climb) with `--ladder auto`, then E9 for it; `solved-L1` in the stop-class rule and H7 on `--lpec 0` rows; optionally F4.1–F4.2. Write-up: §2's Algorithm 1 stands as implemented (E1); state X5 (terminal mechanism), X6 (LM rule), the LPEC round's nested search, and the two-globalization structure (E8) as the method's design choices with the evidence above.
